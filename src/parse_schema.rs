@@ -154,3 +154,105 @@ pub fn get_interface_from_schema(name: &str, schema: &ReferenceOr<Schema>) -> Ty
         types: get_types_from_schema(schema),
     };
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_interface_from_schema_book() {
+        let schema_json = r#"
+        {
+            "type": "object",
+            "properties": {
+                "id": { "type": "string" },
+                "title": { "type": "string" },
+                "author": { "type": "string" },
+                "genres": { "type": "array", "items": { "type": "string" } },
+                "publishedDate": { "type": "string", "format": "date" },
+                "rating": { "type": "number", "format": "float" }
+            }
+        }
+        "#;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface = get_interface_from_schema("Book", &ReferenceOr::Item(schema));
+
+        let expected = r##"interface Book {
+  id: string;
+  title: string;
+  author: string;
+  genres: string[];
+  publishedDate: string;
+  rating: number;
+};"##;
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_get_interface_from_schema_new_book() {
+        let schema_json = r#"
+        {
+            "type": "object",
+            "properties": {
+                "title": { "type": "string" },
+                "author": { "type": "string" },
+                "genres": { "type": "array", "items": { "type": "string" } },
+                "publishedDate": { "type": "string", "format": "date" },
+                "rating": { "type": "number", "format": "float" }
+            },
+            "required": ["title", "author"]
+        }
+        "#;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface = get_interface_from_schema("NewBook", &ReferenceOr::Item(schema));
+
+        let expected = r##"interface NewBook {
+  title: string;
+  author: string;
+  genres: string[];
+  publishedDate: string;
+  rating: number;
+};"##;
+
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_get_interface_from_schema_search_criteria() {
+        let schema_json = r##"
+        {
+            "oneOf": [
+                { "$ref": "#/components/schemas/Book" },
+                {
+                    "type": "object",
+                    "properties": {
+                        "query": { "type": "string" },
+                        "genres": { "type": "array", "items": { "type": "string" } },
+                        "rating": { "type": "number", "format": "float" }
+                    }
+                }
+            ]
+        }
+        "##;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface =
+            get_interface_from_schema("SearchCriteria", &ReferenceOr::Item(schema));
+
+        let expected = r##"type SearchCriteria = Book | {
+  query: string;
+  genres: string[];
+  rating: number;
+};"##;
+
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+}
