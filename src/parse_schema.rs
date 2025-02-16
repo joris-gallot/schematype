@@ -21,6 +21,7 @@ struct TypeObject {
 struct ObjectProperty {
     name: String,
     ts_types: Vec<String>,
+    required: bool,
 }
 
 impl TypeInterface {
@@ -30,8 +31,9 @@ impl TypeInterface {
                 let mut result = Vec::new();
                 for property in &object.properties {
                     result.push(format!(
-                        "  {}: {};",
+                        "  {}{}: {};",
                         property.name,
+                        if property.required { "" } else { "?" },
                         property.ts_types.join(" | ")
                     ));
                 }
@@ -62,52 +64,23 @@ impl TypeInterface {
     }
 }
 
-fn get_object_property_from_schema(
-    name: &str,
-    schema: &ReferenceOr<Box<Schema>>,
-) -> ObjectProperty {
+fn get_ts_types_from_schema(schema: &ReferenceOr<Box<Schema>>) -> Vec<String> {
     match schema {
         ReferenceOr::Item(schema) => match &schema.schema_kind {
-            SchemaKind::Type(Type::String(_)) => {
-                return ObjectProperty {
-                    name: name.to_string(),
-                    ts_types: vec!["string".to_string()],
-                };
-            }
-            SchemaKind::Type(Type::Number(_)) => {
-                return ObjectProperty {
-                    name: name.to_string(),
-                    ts_types: vec!["number".to_string()],
-                };
-            }
-            SchemaKind::Type(Type::Boolean(_)) => {
-                return ObjectProperty {
-                    name: name.to_string(),
-                    ts_types: vec!["boolean".to_string()],
-                };
-            }
+            SchemaKind::Type(Type::String(_)) => vec!["string".to_string()],
+            SchemaKind::Type(Type::Number(_)) => vec!["number".to_string()],
+            SchemaKind::Type(Type::Boolean(_)) => vec!["boolean".to_string()],
             SchemaKind::Type(Type::Array(v)) => {
                 let ts_type = match &v.items {
-                    Some(item) => {
-                        let ts_type = get_object_property_from_schema(name, item);
-                        ts_type.ts_types.join(" | ")
-                    }
+                    Some(item) => get_ts_types_from_schema(item).join(" | "),
                     None => "any".to_string(),
                 };
 
-                return ObjectProperty {
-                    name: name.to_string(),
-                    ts_types: vec![format!("{}[]", ts_type)],
-                };
+                return vec![format!("{}[]", ts_type)];
             }
-            SchemaKind::Type(Type::Object(_)) => {
-                return ObjectProperty {
-                    name: name.to_string(),
-                    ts_types: vec!["object".to_string()],
-                };
-            }
+            SchemaKind::Type(Type::Object(_)) => vec!["object".to_string()],
             _ => {
-                panic!("unknown schema kind for {:?}", name);
+                panic!("unknown schema kind for {:?}", schema);
             }
         },
         ReferenceOr::Reference { reference } => {
@@ -122,13 +95,20 @@ fn get_types_from_schema(schema: &ReferenceOr<Schema>) -> Vec<TypeObjectOrString
     match schema {
         ReferenceOr::Item(schema) => match &schema.schema_kind {
             SchemaKind::Type(Type::Object(object)) => {
-                type_object_or_strings.push(TypeObjectOrString::TypeObject(TypeObject {
-                    properties: object
-                        .properties
-                        .iter()
-                        .map(|(key, value)| get_object_property_from_schema(key, value))
-                        .collect(),
-                }));
+                let properties: Vec<ObjectProperty> = object
+                    .properties
+                    .iter()
+                    .map(|(key, value)| {
+                        return ObjectProperty {
+                            name: key.to_string(),
+                            ts_types: get_ts_types_from_schema(value),
+                            required: object.required.contains(key),
+                        };
+                    })
+                    .collect();
+
+                type_object_or_strings
+                    .push(TypeObjectOrString::TypeObject(TypeObject { properties }));
             }
             SchemaKind::OneOf { one_of } => {
                 for one_of_item in one_of {
@@ -160,7 +140,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_get_interface_from_schema_book() {
+    fn test_object_without_required_properties() {
         let schema_json = r#"
         {
             "type": "object",
@@ -181,18 +161,18 @@ mod tests {
         let type_interface = get_interface_from_schema("Book", &ReferenceOr::Item(schema));
 
         let expected = r##"interface Book {
-  id: string;
-  title: string;
-  author: string;
-  genres: string[];
-  publishedDate: string;
-  rating: number;
+  id?: string;
+  title?: string;
+  author?: string;
+  genres?: string[];
+  publishedDate?: string;
+  rating?: number;
 };"##;
         assert_eq!(type_interface.to_string(), expected.to_string());
     }
 
     #[test]
-    fn test_get_interface_from_schema_new_book() {
+    fn test_object_with_required_properties() {
         let schema_json = r#"
         {
             "type": "object",
@@ -215,16 +195,16 @@ mod tests {
         let expected = r##"interface NewBook {
   title: string;
   author: string;
-  genres: string[];
-  publishedDate: string;
-  rating: number;
+  genres?: string[];
+  publishedDate?: string;
+  rating?: number;
 };"##;
 
         assert_eq!(type_interface.to_string(), expected.to_string());
     }
 
     #[test]
-    fn test_get_interface_from_schema_search_criteria() {
+    fn test_object_with_oneof() {
         let schema_json = r##"
         {
             "oneOf": [
@@ -248,9 +228,9 @@ mod tests {
             get_interface_from_schema("SearchCriteria", &ReferenceOr::Item(schema));
 
         let expected = r##"type SearchCriteria = Book | {
-  query: string;
-  genres: string[];
-  rating: number;
+  query?: string;
+  genres?: string[];
+  rating?: number;
 };"##;
 
         assert_eq!(type_interface.to_string(), expected.to_string());
