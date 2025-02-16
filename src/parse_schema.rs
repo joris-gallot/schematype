@@ -66,23 +66,33 @@ impl TypeInterface {
 
 fn get_ts_types_from_schema(schema: &ReferenceOr<Box<Schema>>) -> Vec<String> {
     match schema {
-        ReferenceOr::Item(schema) => match &schema.schema_kind {
-            SchemaKind::Type(Type::String(_)) => vec!["string".to_string()],
-            SchemaKind::Type(Type::Number(_)) => vec!["number".to_string()],
-            SchemaKind::Type(Type::Boolean(_)) => vec!["boolean".to_string()],
-            SchemaKind::Type(Type::Array(v)) => {
-                let ts_type = match &v.items {
-                    Some(item) => get_ts_types_from_schema(item).join(" | "),
-                    None => "any".to_string(),
-                };
+        ReferenceOr::Item(schema) => {
+            let mut types = Vec::new();
 
-                return vec![format!("{}[]", ts_type)];
+            match &schema.schema_kind {
+                SchemaKind::Type(Type::String(_)) => types.push("string".to_string()),
+                SchemaKind::Type(Type::Number(_)) => types.push("number".to_string()),
+                SchemaKind::Type(Type::Boolean(_)) => types.push("boolean".to_string()),
+                SchemaKind::Type(Type::Array(v)) => {
+                    let ts_type = match &v.items {
+                        Some(item) => get_ts_types_from_schema(item).join(" | "),
+                        None => "any".to_string(),
+                    };
+
+                    types.push(format!("{}[]", ts_type));
+                }
+                SchemaKind::Type(Type::Object(_)) => types.push("object".to_string()),
+                _ => {
+                    panic!("unknown schema kind for {:?}", schema);
+                }
+            };
+
+            if schema.schema_data.nullable {
+                types.push("null".to_string());
             }
-            SchemaKind::Type(Type::Object(_)) => vec!["object".to_string()],
-            _ => {
-                panic!("unknown schema kind for {:?}", schema);
-            }
-        },
+
+            return types;
+        }
         ReferenceOr::Reference { reference } => {
             panic!("not implemented reference: {}", reference);
         }
@@ -198,6 +208,52 @@ mod tests {
   genres?: string[];
   publishedDate?: string;
   rating?: number;
+};"##;
+
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_object_with_nullable_fields() {
+        let schema_json = r#"
+        {
+            "type": "object",
+            "properties": {
+                "reviewer": { 
+                    "type": "string",
+                    "description": "Name of the reviewer"
+                },
+                "comment": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "Review comment"
+                },
+                "rating": {
+                    "type": "number",
+                    "format": "float", 
+                    "nullable": true,
+                    "description": "Rating given by the reviewer"
+                },
+                "date": {
+                    "type": "string",
+                    "format": "date-time",
+                    "nullable": true,
+                    "description": "Date of the review"
+                }
+            }
+        }
+        "#;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface = get_interface_from_schema("Review", &ReferenceOr::Item(schema));
+
+        let expected = r##"interface Review {
+  reviewer?: string;
+  comment?: string | null;
+  rating?: number | null;
+  date?: string | null;
 };"##;
 
         assert_eq!(type_interface.to_string(), expected.to_string());
