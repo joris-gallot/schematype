@@ -221,6 +221,7 @@
         "properties": {
           "id": {
             "type": "string",
+            "nullable": true,
             "description": "Unique identifier for the book"
           },
           "title": {
@@ -229,10 +230,12 @@
           },
           "author": {
             "type": "string",
+            "nullable": true,
             "description": "Author of the book"
           },
           "genres": {
             "type": "array",
+            "nullable": true,
             "items": {
               "type": "string"
             },
@@ -241,12 +244,38 @@
           "publishedDate": {
             "type": "string",
             "format": "date",
+            "nullable": true,
             "description": "Publication date of the book"
           },
           "rating": {
             "type": "number",
             "format": "float",
+            "nullable": true,
             "description": "Rating of the book"
+          },
+          "reviews": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "$ref": "#/components/schemas/Review"
+            },
+            "description": "Reviews of the book"
+          },
+          "availability": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "inStock": {
+                "type": "boolean",
+                "description": "Availability status of the book"
+              },
+              "lastChecked": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Last time the stock was checked"
+              }
+            },
+            "description": "Availability details of the book"
           }
         }
       },
@@ -308,6 +337,77 @@
             }
           }
         ]
+      },
+      "Review": {
+        "type": "object",
+        "properties": {
+          "reviewer": {
+            "type": "string",
+            "description": "Name of the reviewer"
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true,
+            "description": "Review comment"
+          },
+          "rating": {
+            "type": "number",
+            "format": "float",
+            "nullable": true,
+            "description": "Rating given by the reviewer"
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Date of the review"
+          }
+        }
+      },
+      "LibraryUser": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "Unique identifier for the user"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the user"
+          },
+          "membershipStatus": {
+            "type": "string",
+            "enum": ["active", "inactive", "suspended"],
+            "description": "Membership status of the user"
+          },
+          "borrowedBooks": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "$ref": "#/components/schemas/Book"
+            },
+            "description": "List of books borrowed by the user"
+          },
+          "address": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "street": {
+                "type": "string",
+                "description": "Street address"
+              },
+              "city": {
+                "type": "string",
+                "description": "City"
+              },
+              "zipCode": {
+                "type": "string",
+                "description": "ZIP code"
+              }
+            },
+            "description": "Address details of the user"
+          }
+        }
       }
     }
   }
