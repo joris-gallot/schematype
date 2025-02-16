@@ -150,7 +150,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_object_without_required_properties() {
+    fn test_object() {
         let schema_json = r#"
         {
             "type": "object",
@@ -214,7 +214,7 @@ mod tests {
     }
 
     #[test]
-    fn test_object_with_nullable_fields() {
+    fn test_object_with_nullable_properties() {
         let schema_json = r#"
         {
             "type": "object",
