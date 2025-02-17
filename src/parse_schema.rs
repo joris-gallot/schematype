@@ -1,4 +1,6 @@
 use openapiv3::{ReferenceOr, Schema, SchemaKind, Type};
+use std::iter::Flatten;
+use std::vec::IntoIter;
 
 #[derive(Debug)]
 enum ObjectOrPrimitiveOrRef {
@@ -178,6 +180,18 @@ impl SchemaLike for Box<Schema> {
     }
 }
 
+fn get_types_for_any_one_of(
+    schema: &Vec<ReferenceOr<Schema>>,
+    is_array: bool,
+) -> Flatten<IntoIter<Vec<ObjectOrPrimitiveOrRef>>> {
+    schema
+        .iter()
+        .map(|any_of_item| get_types_from_schema(any_of_item, is_array))
+        .collect::<Vec<Vec<ObjectOrPrimitiveOrRef>>>()
+        .into_iter()
+        .flatten()
+}
+
 fn get_types_from_schema<T: SchemaLike>(
     schema: &ReferenceOr<T>,
     is_array: bool,
@@ -252,10 +266,11 @@ fn get_types_from_schema<T: SchemaLike>(
                         is_array: is_array,
                     }));
                 }
+                SchemaKind::AnyOf { any_of } => {
+                    types.extend(get_types_for_any_one_of(any_of, is_array));
+                }
                 SchemaKind::OneOf { one_of } => {
-                    for one_of_item in one_of {
-                        types.extend(get_types_from_schema(one_of_item, is_array));
-                    }
+                    types.extend(get_types_for_any_one_of(one_of, is_array));
                 }
                 _ => {
                     println!("unknown schema kind for {:?}", schema);
@@ -498,6 +513,50 @@ mod tests {
     }
 
     #[test]
+    fn test_object_with_anyof() {
+        let schema_json = r##"
+        {
+            "anyOf": [
+                { 
+                    "type": "object",
+                    "properties": {
+                        "name": { "type": "string" },
+                        "age": { "type": "number" }
+                    },
+                    "required": ["name"]
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "id": { "type": "string" },
+                        "role": { 
+                            "type": "string",
+                            "enum": ["admin", "user"]
+                        }
+                    },
+                    "required": ["id", "role"]
+                }
+            ]
+        }
+        "##;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface = get_interface_from_schema("UserInfo", &ReferenceOr::Item(schema));
+
+        let expected = r##"type UserInfo = {
+  name: string;
+  age?: number;
+} | {
+  id: string;
+  role: "admin" | "user";
+};"##;
+
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+
+    #[test]
     fn test_array_with_oneof() {
         let schema_json = r##"
         {
@@ -525,6 +584,41 @@ mod tests {
         let type_interface = get_interface_from_schema("MixedArray", &ReferenceOr::Item(schema));
 
         let expected = r##"type MixedArray = string[] | number[] | {
+  name: string;
+  value: number;
+}[];"##;
+
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_array_with_anyof() {
+        let schema_json = r##"
+        {
+            "type": "array",
+            "items": {
+                "anyOf": [
+                    { "type": "string" },
+                    { "type": "number" },
+                    { 
+                        "type": "object",
+                        "properties": {
+                            "name": { "type": "string" },
+                            "value": { "type": "number" }
+                        },
+                        "required": ["name", "value"]
+                    }
+                ]
+            }
+        }
+        "##;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface = get_interface_from_schema("MixedAnyArray", &ReferenceOr::Item(schema));
+
+        let expected = r##"type MixedAnyArray = string[] | number[] | {
   name: string;
   value: number;
 }[];"##;
@@ -689,6 +783,68 @@ mod tests {
     }
 
     #[test]
+    fn test_object_with_nested_anyof() {
+        let schema_json = r#"
+        {
+            "type": "object",
+            "properties": {
+                "id": { "type": "string" },
+                "content": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "properties": {
+                                "type": { "type": "string", "enum": ["text"] },
+                                "text": { "type": "string" }
+                            },
+                            "required": ["type", "text"]
+                        },
+                        {
+                            "type": "object", 
+                            "properties": {
+                                "type": { "type": "string", "enum": ["image"] },
+                                "url": { "type": "string" },
+                                "dimensions": {
+                                    "type": "object",
+                                    "properties": {
+                                        "width": { "type": "number" },
+                                        "height": { "type": "number" }
+                                    }
+                                }
+                            },
+                            "required": ["type", "url"]
+                        }
+                    ]
+                }
+            },
+            "required": ["id", "content"]
+        }
+        "#;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface = get_interface_from_schema("MessageAny", &ReferenceOr::Item(schema));
+
+        let expected = r##"interface MessageAny {
+  id: string;
+  content: {
+    type: "text";
+    text: string;
+  } | {
+    type: "image";
+    url: string;
+    dimensions?: {
+      width?: number;
+      height?: number;
+    };
+  };
+};"##;
+
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+
+    #[test]
     fn test_nested_object_with_array_oneof() {
         let schema_json = r#"
           {
@@ -737,6 +893,72 @@ mod tests {
         let type_interface = get_interface_from_schema("DeepArray", &ReferenceOr::Item(schema));
 
         let expected = r##"interface DeepArray {
+  id: string;
+  metadata: {
+    title: string;
+    tags: string[] | {
+      name: string;
+      value: number;
+      metadata?: {
+        description: string;
+        priority?: number;
+      };
+    }[];
+  };
+};"##;
+
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_nested_object_with_array_anyof() {
+        let schema_json = r#"
+          {
+              "type": "object",
+              "properties": {
+                  "id": { "type": "string" },
+                  "metadata": {
+                      "type": "object",
+                      "properties": {
+                          "title": { "type": "string" },
+                          "tags": {
+                              "type": "array",
+                              "items": {
+                                  "anyOf": [
+                                      { "type": "string" },
+                                      {
+                                          "type": "object",
+                                          "properties": {
+                                              "name": { "type": "string" },
+                                              "value": { "type": "number" },
+                                              "metadata": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                      "description": { "type": "string" },
+                                                      "priority": { "type": "number" }
+                                                  },
+                                                  "required": ["description"]
+                                              }
+                                          },
+                                          "required": ["name", "value"]
+                                      }
+                                  ]
+                              }
+                          }
+                      },
+                      "required": ["title", "tags"]
+                  }
+              },
+              "required": ["id", "metadata"]
+          }
+          "#;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface = get_interface_from_schema("DeepArrayAny", &ReferenceOr::Item(schema));
+
+        let expected = r##"interface DeepArrayAny {
   id: string;
   metadata: {
     title: string;
