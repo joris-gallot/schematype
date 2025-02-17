@@ -37,6 +37,7 @@ struct RefProperty {
 #[derive(Debug)]
 struct PrimitiveProperty {
     primitive_type: PrimitiveType,
+    enumeration: Vec<String>,
     is_array: bool,
 }
 
@@ -57,10 +58,24 @@ impl TypeInterface {
 
     fn primitive_to_string(primitive: &PrimitiveProperty) -> String {
         match primitive.primitive_type {
-            PrimitiveType::String => primitive
-                .is_array
-                .then(|| "string[]".to_string())
-                .unwrap_or("string".to_string()),
+            PrimitiveType::String => {
+                if primitive.enumeration.is_empty() {
+                    primitive
+                        .is_array
+                        .then(|| "string[]".to_string())
+                        .unwrap_or("string".to_string())
+                } else {
+                    format!(
+                        "{}",
+                        primitive
+                            .enumeration
+                            .iter()
+                            .map(|s| format!("\"{}\"", s))
+                            .collect::<Vec<String>>()
+                            .join(" | ")
+                    )
+                }
+            }
             PrimitiveType::Number => primitive
                 .is_array
                 .then(|| "number[]".to_string())
@@ -173,11 +188,19 @@ fn get_types_from_schema<T: SchemaLike>(
             let schema = schema.as_schema();
 
             match &schema.schema_kind {
-                SchemaKind::Type(Type::String(_)) => {
+                SchemaKind::Type(Type::String(string_type)) => {
+                    let enumeration = string_type
+                        .enumeration
+                        .iter()
+                        .filter(|s| s.is_some())
+                        .map(|s| s.as_ref().unwrap().to_string())
+                        .collect::<Vec<String>>();
+
                     types.push(ObjectOrPrimitiveOrRef::PrimitiveProperty(
                         PrimitiveProperty {
                             primitive_type: PrimitiveType::String,
                             is_array: is_array,
+                            enumeration: enumeration,
                         },
                     ));
                 }
@@ -186,6 +209,7 @@ fn get_types_from_schema<T: SchemaLike>(
                         PrimitiveProperty {
                             primitive_type: PrimitiveType::Number,
                             is_array: is_array,
+                            enumeration: vec![],
                         },
                     ));
                 }
@@ -194,6 +218,7 @@ fn get_types_from_schema<T: SchemaLike>(
                         PrimitiveProperty {
                             primitive_type: PrimitiveType::Boolean,
                             is_array: is_array,
+                            enumeration: vec![],
                         },
                     ));
                 }
@@ -204,6 +229,7 @@ fn get_types_from_schema<T: SchemaLike>(
                             PrimitiveProperty {
                                 primitive_type: PrimitiveType::Any,
                                 is_array: true,
+                                enumeration: vec![],
                             },
                         )],
                     };
@@ -241,6 +267,7 @@ fn get_types_from_schema<T: SchemaLike>(
                     PrimitiveProperty {
                         primitive_type: PrimitiveType::Null,
                         is_array: is_array,
+                        enumeration: vec![],
                     },
                 ));
             }
@@ -397,6 +424,41 @@ mod tests {
   comment?: string | null;
   rating?: number | null;
   date?: string | null;
+};"##;
+
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_object_with_enum() {
+        let schema_json = r#"
+        {
+            "type": "object",
+            "properties": {
+                "id": { "type": "string" },
+                "status": { 
+                    "type": "string",
+                    "enum": ["draft", "published", "archived"]
+                },
+                "visibility": {
+                    "type": "string", 
+                    "enum": ["public", "private"],
+                    "nullable": true
+                }
+            },
+            "required": ["id", "status"]
+        }
+        "#;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface = get_interface_from_schema("Post", &ReferenceOr::Item(schema));
+
+        let expected = r##"interface Post {
+  id: string;
+  status: "draft" | "published" | "archived";
+  visibility?: "public" | "private" | null;
 };"##;
 
         assert_eq!(type_interface.to_string(), expected.to_string());
@@ -611,10 +673,10 @@ mod tests {
         let expected = r##"interface Message {
   id: string;
   content: {
-    type: string;
+    type: "text";
     text: string;
   } | {
-    type: string;
+    type: "image";
     url: string;
     dimensions?: {
       width?: number;
