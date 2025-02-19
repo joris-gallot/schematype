@@ -1,27 +1,30 @@
 use openapiv3::{ReferenceOr, Schema, SchemaKind, Type};
-use std::iter::Flatten;
-use std::vec::IntoIter;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum ObjectOrPrimitiveOrRef {
     TypeObject(TypeObject),
     PrimitiveProperty(PrimitiveProperty),
     RefProperty(RefProperty),
 }
 
+#[derive(Debug, Clone)]
+enum UnionOrIntersection {
+    Union,
+    Intersection,
+}
+
 #[derive(Debug)]
 pub struct TypeInterface {
     name: String,
-    types: Vec<ObjectOrPrimitiveOrRef>,
+    expressions: Vec<Expression>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct TypeObject {
     properties: Vec<ObjectProperty>,
-    is_array: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum PrimitiveType {
     String,
     Number,
@@ -30,42 +33,49 @@ enum PrimitiveType {
     Any,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct RefProperty {
     reference: String,
-    is_array: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct PrimitiveProperty {
     primitive_type: PrimitiveType,
     enumeration: Vec<String>,
-    is_array: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct ObjectProperty {
     name: String,
-    ts_types: Vec<ObjectOrPrimitiveOrRef>,
+    expressions: Vec<Expression>,
     required: bool,
 }
 
+#[derive(Debug, Clone)]
+struct Expression {
+    types: Vec<ObjectOrPrimitiveOrRef>,
+    link: Option<UnionOrIntersection>,
+    is_array: bool,
+}
+
 impl TypeInterface {
+    fn get_separator(separator: &Option<UnionOrIntersection>) -> &'static str {
+        match separator {
+            Some(UnionOrIntersection::Union) => " | ",
+            Some(UnionOrIntersection::Intersection) => " & ",
+            None => " | ",
+        }
+    }
+
     fn reference_to_string(reference: &RefProperty) -> String {
-        reference
-            .is_array
-            .then(|| format!("{}[]", reference.reference))
-            .unwrap_or(reference.reference.to_string())
+        reference.reference.to_string()
     }
 
     fn primitive_to_string(primitive: &PrimitiveProperty) -> String {
         match primitive.primitive_type {
             PrimitiveType::String => {
                 if primitive.enumeration.is_empty() {
-                    primitive
-                        .is_array
-                        .then(|| "string[]".to_string())
-                        .unwrap_or("string".to_string())
+                    "string".to_string()
                 } else {
                     format!(
                         "{}",
@@ -74,51 +84,64 @@ impl TypeInterface {
                             .iter()
                             .map(|s| format!("\"{}\"", s))
                             .collect::<Vec<String>>()
-                            .join(" | ")
+                            .join(TypeInterface::get_separator(&Some(
+                                UnionOrIntersection::Union
+                            )))
                     )
                 }
             }
-            PrimitiveType::Number => primitive
-                .is_array
-                .then(|| "number[]".to_string())
-                .unwrap_or("number".to_string()),
-            PrimitiveType::Boolean => primitive
-                .is_array
-                .then(|| "boolean[]".to_string())
-                .unwrap_or("boolean".to_string()),
-            PrimitiveType::Null => primitive
-                .is_array
-                .then(|| "null[]".to_string())
-                .unwrap_or("null".to_string()),
-            PrimitiveType::Any => primitive
-                .is_array
-                .then(|| "any[]".to_string())
-                .unwrap_or("any".to_string()),
+            PrimitiveType::Number => "number".to_string(),
+            PrimitiveType::Boolean => "boolean".to_string(),
+            PrimitiveType::Null => "null".to_string(),
+            PrimitiveType::Any => "any".to_string(),
         }
     }
 
-    fn type_object_to_string(object_or_string: &ObjectOrPrimitiveOrRef, depth: usize) -> String {
-        match object_or_string {
-            ObjectOrPrimitiveOrRef::TypeObject(object) => {
+    fn type_object_to_string(object: &ObjectOrPrimitiveOrRef, depth: usize) -> String {
+        match object {
+            ObjectOrPrimitiveOrRef::TypeObject(type_object) => {
                 let mut object_string = Vec::new();
 
-                for property in &object.properties {
+                for property in &type_object.properties {
                     let ts_types_string = property
-                        .ts_types
+                        .expressions
                         .iter()
-                        .map(|ts_type| match ts_type {
-                            ObjectOrPrimitiveOrRef::TypeObject(_) => {
-                                TypeInterface::type_object_to_string(ts_type, depth + 1)
-                            }
-                            ObjectOrPrimitiveOrRef::PrimitiveProperty(primitive_property) => {
-                                TypeInterface::primitive_to_string(primitive_property)
-                            }
-                            ObjectOrPrimitiveOrRef::RefProperty(ref_property) => {
-                                TypeInterface::reference_to_string(ref_property)
-                            }
+                        .map(|expression| {
+                            let exp_string = expression
+                                .types
+                                .iter()
+                                .map(|t| match t {
+                                    ObjectOrPrimitiveOrRef::TypeObject(obj) => {
+                                        TypeInterface::type_object_to_string(
+                                            &ObjectOrPrimitiveOrRef::TypeObject(obj.clone()),
+                                            depth + 1,
+                                        )
+                                    }
+                                    ObjectOrPrimitiveOrRef::PrimitiveProperty(primitive) => {
+                                        TypeInterface::primitive_to_string(primitive)
+                                    }
+                                    ObjectOrPrimitiveOrRef::RefProperty(reference) => {
+                                        TypeInterface::reference_to_string(reference)
+                                    }
+                                })
+                                .collect::<Vec<String>>()
+                                .join(TypeInterface::get_separator(&expression.link));
+
+                            let need_parentheses = expression.link.is_some()
+                                && (expression.is_array || expression.types.len() > 1);
+
+                            format!(
+                                "{}{}{}{}",
+                                if need_parentheses { "(" } else { "" },
+                                exp_string,
+                                if need_parentheses { ")" } else { "" },
+                                if expression.is_array { "[]" } else { "" }
+                            )
                         })
                         .collect::<Vec<String>>()
-                        .join(" | ");
+                        .join(TypeInterface::get_separator(&Some(
+                            UnionOrIntersection::Union,
+                        )));
 
                     object_string.push(format!(
                         "{}{}{}: {};",
@@ -129,38 +152,57 @@ impl TypeInterface {
                     ));
                 }
 
-                return format!(
-                    "{{\n{}\n{}}}{}",
+                format!(
+                    "{{\n{}\n{}}}",
                     object_string.join("\n"),
                     "  ".repeat(depth - 1),
-                    if object.is_array { "[]" } else { "" }
-                );
+                )
             }
-            ObjectOrPrimitiveOrRef::PrimitiveProperty(primitive_property) => {
-                return TypeInterface::primitive_to_string(primitive_property);
+            ObjectOrPrimitiveOrRef::PrimitiveProperty(primitive) => {
+                TypeInterface::primitive_to_string(primitive)
             }
-            ObjectOrPrimitiveOrRef::RefProperty(ref_property) => {
-                return TypeInterface::reference_to_string(ref_property);
+            ObjectOrPrimitiveOrRef::RefProperty(reference) => {
+                TypeInterface::reference_to_string(reference)
             }
         }
     }
 
     pub fn to_string(&self) -> String {
-        if self.types.len() > 1 {
-            let mut result = Vec::new();
-            for current_type in &self.types {
-                result.push(TypeInterface::type_object_to_string(current_type, 1));
-            }
-
-            return format!("type {} = {};", self.name, result.join(" | "));
+        if self.expressions.is_empty() {
+            return String::new();
         }
 
-        if self.types.len() == 1 {
-            let type_string = TypeInterface::type_object_to_string(&self.types[0], 1);
-            return format!("interface {} {};", self.name, type_string);
-        }
+        let types = self
+            .expressions
+            .iter()
+            .map(|expression| {
+                let exp_string = expression
+                    .types
+                    .iter()
+                    .map(|t| TypeInterface::type_object_to_string(t, 1))
+                    .collect::<Vec<String>>()
+                    .join(TypeInterface::get_separator(&expression.link));
 
-        return "".to_string();
+                let need_parentheses = (expression.link.is_some() && expression.is_array)
+                    || (expression.link.is_some() && self.expressions.len() > 1);
+
+                format!(
+                    "{}{}{}{}",
+                    if need_parentheses { "(" } else { "" },
+                    exp_string,
+                    if need_parentheses { ")" } else { "" },
+                    if expression.is_array { "[]" } else { "" }
+                )
+            })
+            .collect::<Vec<String>>();
+
+        format!(
+            "type {} = {};",
+            self.name,
+            types.join(TypeInterface::get_separator(&Some(
+                UnionOrIntersection::Union
+            )))
+        )
     }
 }
 
@@ -180,25 +222,28 @@ impl SchemaLike for Box<Schema> {
     }
 }
 
-fn get_types_for_any_one_of(
+fn get_any_one_all_of_types(
     schema: &Vec<ReferenceOr<Schema>>,
     is_array: bool,
-) -> Flatten<IntoIter<Vec<ObjectOrPrimitiveOrRef>>> {
+    separator: Option<UnionOrIntersection>,
+) -> Vec<ObjectOrPrimitiveOrRef> {
     schema
         .iter()
-        .map(|any_of_item| get_types_from_schema(any_of_item, is_array))
-        .collect::<Vec<Vec<ObjectOrPrimitiveOrRef>>>()
-        .into_iter()
+        .map(|any_of_item| get_expressions_from_schema(any_of_item, is_array, separator.clone()))
         .flatten()
+        .map(|expression| expression.types)
+        .flatten()
+        .collect()
 }
 
-fn get_types_from_schema<T: SchemaLike>(
+fn get_expressions_from_schema<T: SchemaLike>(
     schema: &ReferenceOr<T>,
     is_array: bool,
-) -> Vec<ObjectOrPrimitiveOrRef> {
+    separator: Option<UnionOrIntersection>,
+) -> Vec<Expression> {
     match schema {
         ReferenceOr::Item(schema) => {
-            let mut types: Vec<ObjectOrPrimitiveOrRef> = Vec::new();
+            let mut expressions: Vec<Expression> = Vec::new();
             let schema = schema.as_schema();
 
             match &schema.schema_kind {
@@ -210,45 +255,57 @@ fn get_types_from_schema<T: SchemaLike>(
                         .map(|s| s.as_ref().unwrap().to_string())
                         .collect::<Vec<String>>();
 
-                    types.push(ObjectOrPrimitiveOrRef::PrimitiveProperty(
-                        PrimitiveProperty {
-                            primitive_type: PrimitiveType::String,
-                            is_array: is_array,
-                            enumeration: enumeration,
-                        },
-                    ));
+                    expressions.push(Expression {
+                        types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
+                            PrimitiveProperty {
+                                primitive_type: PrimitiveType::String,
+                                enumeration: enumeration,
+                            },
+                        )],
+                        is_array: is_array,
+                        link: None,
+                    });
                 }
                 SchemaKind::Type(Type::Number(_)) => {
-                    types.push(ObjectOrPrimitiveOrRef::PrimitiveProperty(
-                        PrimitiveProperty {
-                            primitive_type: PrimitiveType::Number,
-                            is_array: is_array,
-                            enumeration: vec![],
-                        },
-                    ));
-                }
-                SchemaKind::Type(Type::Boolean(_)) => {
-                    types.push(ObjectOrPrimitiveOrRef::PrimitiveProperty(
-                        PrimitiveProperty {
-                            primitive_type: PrimitiveType::Boolean,
-                            is_array: is_array,
-                            enumeration: vec![],
-                        },
-                    ));
-                }
-                SchemaKind::Type(Type::Array(v)) => {
-                    let ts_type: Vec<ObjectOrPrimitiveOrRef> = match &v.items {
-                        Some(item) => get_types_from_schema(item, true),
-                        None => vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
+                    expressions.push(Expression {
+                        types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
                             PrimitiveProperty {
-                                primitive_type: PrimitiveType::Any,
-                                is_array: true,
+                                primitive_type: PrimitiveType::Number,
                                 enumeration: vec![],
                             },
                         )],
+                        is_array: is_array,
+                        link: None,
+                    });
+                }
+                SchemaKind::Type(Type::Boolean(_)) => {
+                    expressions.push(Expression {
+                        types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
+                            PrimitiveProperty {
+                                primitive_type: PrimitiveType::Boolean,
+                                enumeration: vec![],
+                            },
+                        )],
+                        is_array: is_array,
+                        link: None,
+                    });
+                }
+                SchemaKind::Type(Type::Array(v)) => {
+                    let array_expressions: Vec<Expression> = match &v.items {
+                        Some(item) => get_expressions_from_schema(item, true, separator.clone()),
+                        None => vec![Expression {
+                            types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
+                                PrimitiveProperty {
+                                    primitive_type: PrimitiveType::Any,
+                                    enumeration: vec![],
+                                },
+                            )],
+                            is_array: true,
+                            link: None,
+                        }],
                     };
 
-                    types.extend(ts_type);
+                    expressions.extend(array_expressions);
                 }
                 SchemaKind::Type(Type::Object(object)) => {
                     let properties: Vec<ObjectProperty> = object
@@ -256,21 +313,39 @@ fn get_types_from_schema<T: SchemaLike>(
                         .iter()
                         .map(|(key, value)| ObjectProperty {
                             name: key.to_string(),
-                            ts_types: get_types_from_schema(value, false),
+                            expressions: get_expressions_from_schema(value, false, None),
                             required: object.required.contains(key),
                         })
                         .collect();
 
-                    types.push(ObjectOrPrimitiveOrRef::TypeObject(TypeObject {
-                        properties,
+                    expressions.push(Expression {
+                        types: vec![ObjectOrPrimitiveOrRef::TypeObject(TypeObject {
+                            properties,
+                        })],
                         is_array: is_array,
-                    }));
+                        link: None,
+                    });
                 }
                 SchemaKind::AnyOf { any_of } => {
-                    types.extend(get_types_for_any_one_of(any_of, is_array));
+                    expressions.push(Expression {
+                        types: get_any_one_all_of_types(any_of, is_array, None),
+                        is_array: is_array,
+                        link: Some(UnionOrIntersection::Union),
+                    });
                 }
                 SchemaKind::OneOf { one_of } => {
-                    types.extend(get_types_for_any_one_of(one_of, is_array));
+                    expressions.push(Expression {
+                        types: get_any_one_all_of_types(one_of, is_array, None),
+                        is_array: is_array,
+                        link: Some(UnionOrIntersection::Union),
+                    });
+                }
+                SchemaKind::AllOf { all_of } => {
+                    expressions.push(Expression {
+                        types: get_any_one_all_of_types(all_of, is_array, None),
+                        is_array: is_array,
+                        link: Some(UnionOrIntersection::Intersection),
+                    });
                 }
                 _ => {
                     println!("unknown schema kind for {:?}", schema);
@@ -278,23 +353,29 @@ fn get_types_from_schema<T: SchemaLike>(
             }
 
             if schema.schema_data.nullable {
-                types.push(ObjectOrPrimitiveOrRef::PrimitiveProperty(
-                    PrimitiveProperty {
-                        primitive_type: PrimitiveType::Null,
-                        is_array: is_array,
-                        enumeration: vec![],
-                    },
-                ));
+                expressions.push(Expression {
+                    types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
+                        PrimitiveProperty {
+                            primitive_type: PrimitiveType::Null,
+                            enumeration: vec![],
+                        },
+                    )],
+                    is_array: is_array,
+                    link: None,
+                });
             }
 
-            return types;
+            return expressions;
         }
         ReferenceOr::Reference { reference } => {
             let reference_name = reference.split('/').last().unwrap_or_default().to_string();
-            return vec![ObjectOrPrimitiveOrRef::RefProperty(RefProperty {
-                reference: reference_name,
+            return vec![Expression {
+                types: vec![ObjectOrPrimitiveOrRef::RefProperty(RefProperty {
+                    reference: reference_name,
+                })],
                 is_array: is_array,
-            })];
+                link: separator,
+            }];
         }
     }
 }
@@ -302,10 +383,9 @@ fn get_types_from_schema<T: SchemaLike>(
 pub fn get_interface_from_schema(name: &str, schema: &ReferenceOr<Schema>) -> TypeInterface {
     TypeInterface {
         name: name.to_string(),
-        types: get_types_from_schema(schema, false),
+        expressions: get_expressions_from_schema(schema, false, None),
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -330,7 +410,7 @@ mod tests {
 
         let type_interface = get_interface_from_schema("Book", &ReferenceOr::Item(schema));
 
-        let expected = r##"interface Book {
+        let expected = r##"type Book = {
   id?: string;
   title?: string;
   author?: string;
@@ -344,7 +424,7 @@ mod tests {
     fn test_object_with_array() {
         let schema_json = r#"
         {
-            "type": "object", 
+            "type": "object",
             "properties": {
                 "id": { "type": "string" },
                 "genres": { "type": "array", "items": { "type": "string" } },
@@ -358,7 +438,7 @@ mod tests {
 
         let type_interface = get_interface_from_schema("BookMetadata", &ReferenceOr::Item(schema));
 
-        let expected = r##"interface BookMetadata {
+        let expected = r##"type BookMetadata = {
   id?: string;
   genres?: string[];
   tags?: string[];
@@ -387,7 +467,7 @@ mod tests {
 
         let type_interface = get_interface_from_schema("NewBook", &ReferenceOr::Item(schema));
 
-        let expected = r##"interface NewBook {
+        let expected = r##"type NewBook = {
   title: string;
   author: string;
   genres?: string[];
@@ -404,7 +484,7 @@ mod tests {
         {
             "type": "object",
             "properties": {
-                "reviewer": { 
+                "reviewer": {
                     "type": "string",
                     "description": "Name of the reviewer"
                 },
@@ -415,7 +495,7 @@ mod tests {
                 },
                 "rating": {
                     "type": "number",
-                    "format": "float", 
+                    "format": "float",
                     "nullable": true,
                     "description": "Rating given by the reviewer"
                 },
@@ -434,7 +514,7 @@ mod tests {
 
         let type_interface = get_interface_from_schema("Review", &ReferenceOr::Item(schema));
 
-        let expected = r##"interface Review {
+        let expected = r##"type Review = {
   reviewer?: string;
   comment?: string | null;
   rating?: number | null;
@@ -451,12 +531,12 @@ mod tests {
             "type": "object",
             "properties": {
                 "id": { "type": "string" },
-                "status": { 
+                "status": {
                     "type": "string",
                     "enum": ["draft", "published", "archived"]
                 },
                 "visibility": {
-                    "type": "string", 
+                    "type": "string",
                     "enum": ["public", "private"],
                     "nullable": true
                 }
@@ -470,7 +550,7 @@ mod tests {
 
         let type_interface = get_interface_from_schema("Post", &ReferenceOr::Item(schema));
 
-        let expected = r##"interface Post {
+        let expected = r##"type Post = {
   id: string;
   status: "draft" | "published" | "archived";
   visibility?: "public" | "private" | null;
@@ -513,11 +593,44 @@ mod tests {
     }
 
     #[test]
+    fn test_object_with_allof() {
+        let schema_json = r##"
+        {
+            "allOf": [
+                { "$ref": "#/components/schemas/Book" },
+                {
+                    "type": "object",
+                    "properties": {
+                        "query": { "type": "string" },
+                        "genres": { "type": "array", "items": { "type": "string" } },
+                        "rating": { "type": "number", "format": "float" }
+                    }
+                }
+            ]
+        }
+        "##;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface =
+            get_interface_from_schema("BookWithMetadata", &ReferenceOr::Item(schema));
+
+        let expected = r##"type BookWithMetadata = Book & {
+  query?: string;
+  genres?: string[];
+  rating?: number;
+};"##;
+
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+
+    #[test]
     fn test_object_with_anyof() {
         let schema_json = r##"
         {
             "anyOf": [
-                { 
+                {
                     "type": "object",
                     "properties": {
                         "name": { "type": "string" },
@@ -529,7 +642,7 @@ mod tests {
                     "type": "object",
                     "properties": {
                         "id": { "type": "string" },
-                        "role": { 
+                        "role": {
                             "type": "string",
                             "enum": ["admin", "user"]
                         }
@@ -565,7 +678,7 @@ mod tests {
                 "oneOf": [
                     { "type": "string" },
                     { "type": "number" },
-                    { 
+                    {
                         "type": "object",
                         "properties": {
                             "name": { "type": "string" },
@@ -583,10 +696,59 @@ mod tests {
 
         let type_interface = get_interface_from_schema("MixedArray", &ReferenceOr::Item(schema));
 
-        let expected = r##"type MixedArray = string[] | number[] | {
+        let expected = r##"type MixedArray = (string | number | {
   name: string;
   value: number;
-}[];"##;
+})[];"##;
+
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_array_with_allof() {
+        let schema_json = r##"
+        {
+            "type": "array",
+            "items": {
+                "allOf": [
+                    { "type": "object",
+                      "properties": {
+                          "id": { "type": "string" },
+                          "name": { "type": "string" }
+                      },
+                      "required": ["id"]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "metadata": {
+                                "type": "object",
+                                "properties": {
+                                    "created": { "type": "string" },
+                                    "modified": { "type": "string" }
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+        "##;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface = get_interface_from_schema("CombinedArray", &ReferenceOr::Item(schema));
+
+        let expected = r##"type CombinedArray = ({
+  id: string;
+  name?: string;
+} & {
+  metadata?: {
+    created?: string;
+    modified?: string;
+  };
+})[];"##;
 
         assert_eq!(type_interface.to_string(), expected.to_string());
     }
@@ -600,7 +762,7 @@ mod tests {
                 "anyOf": [
                     { "type": "string" },
                     { "type": "number" },
-                    { 
+                    {
                         "type": "object",
                         "properties": {
                             "name": { "type": "string" },
@@ -618,10 +780,10 @@ mod tests {
 
         let type_interface = get_interface_from_schema("MixedAnyArray", &ReferenceOr::Item(schema));
 
-        let expected = r##"type MixedAnyArray = string[] | number[] | {
+        let expected = r##"type MixedAnyArray = (string | number | {
   name: string;
   value: number;
-}[];"##;
+})[];"##;
 
         assert_eq!(type_interface.to_string(), expected.to_string());
     }
@@ -661,7 +823,7 @@ mod tests {
 
         let type_interface = get_interface_from_schema("Location", &ReferenceOr::Item(schema));
 
-        let expected = r##"interface Location {
+        let expected = r##"type Location = {
   id: string;
   name: string;
   address: {
@@ -682,7 +844,7 @@ mod tests {
     fn test_object_with_nested_arrays() {
         let schema_json = r#"
         {
-            "type": "object", 
+            "type": "object",
             "properties": {
                 "id": { "type": "string" },
                 "categories": {
@@ -709,7 +871,7 @@ mod tests {
 
         let type_interface = get_interface_from_schema("Product", &ReferenceOr::Item(schema));
 
-        let expected = r##"interface Product {
+        let expected = r##"type Product = {
   id: string;
   categories?: {
     name: string;
@@ -721,124 +883,90 @@ mod tests {
     }
 
     #[test]
-    fn test_object_with_nested_oneof() {
+    fn test_object_with_complex_nested_arrays() {
         let schema_json = r#"
         {
             "type": "object",
             "properties": {
                 "id": { "type": "string" },
-                "content": {
-                    "oneOf": [
-                        {
-                            "type": "object",
-                            "properties": {
-                                "type": { "type": "string", "enum": ["text"] },
-                                "text": { "type": "string" }
-                            },
-                            "required": ["type", "text"]
-                        },
-                        {
-                            "type": "object", 
-                            "properties": {
-                                "type": { "type": "string", "enum": ["image"] },
-                                "url": { "type": "string" },
-                                "dimensions": {
+                "departments": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": { "type": "string" },
+                            "teams": {
+                                "type": "array",
+                                "items": {
                                     "type": "object",
                                     "properties": {
-                                        "width": { "type": "number" },
-                                        "height": { "type": "number" }
-                                    }
+                                        "teamName": { "type": "string" },
+                                        "members": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": { "type": "string" },
+                                                    "name": { "type": "string" },
+                                                    "skills": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "name": { "type": "string" },
+                                                                "level": { "type": "number" },
+                                                                "certifications": {
+                                                                    "type": "array",
+                                                                    "items": { "type": "string" }
+                                                                }
+                                                            },
+                                                            "required": ["name", "level"]
+                                                        }
+                                                    }
+                                                },
+                                                "required": ["id", "name"]
+                                            }
+                                        },
+                                        "projects": {
+                                            "type": "array",
+                                            "items": { "type": "string" }
+                                        }
+                                    },
+                                    "required": ["teamName", "members"]
                                 }
-                            },
-                            "required": ["type", "url"]
-                        }
-                    ]
+                            }
+                        },
+                        "required": ["name", "teams"]
+                    }
                 }
             },
-            "required": ["id", "content"]
+            "required": ["id", "departments"]
         }
         "#;
 
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = get_interface_from_schema("Message", &ReferenceOr::Item(schema));
+        let type_interface = get_interface_from_schema("Organization", &ReferenceOr::Item(schema));
 
-        let expected = r##"interface Message {
+        let expected = r##"type Organization = {
   id: string;
-  content: {
-    type: "text";
-    text: string;
-  } | {
-    type: "image";
-    url: string;
-    dimensions?: {
-      width?: number;
-      height?: number;
-    };
-  };
-};"##;
-
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
-
-    #[test]
-    fn test_object_with_nested_anyof() {
-        let schema_json = r#"
-        {
-            "type": "object",
-            "properties": {
-                "id": { "type": "string" },
-                "content": {
-                    "anyOf": [
-                        {
-                            "type": "object",
-                            "properties": {
-                                "type": { "type": "string", "enum": ["text"] },
-                                "text": { "type": "string" }
-                            },
-                            "required": ["type", "text"]
-                        },
-                        {
-                            "type": "object", 
-                            "properties": {
-                                "type": { "type": "string", "enum": ["image"] },
-                                "url": { "type": "string" },
-                                "dimensions": {
-                                    "type": "object",
-                                    "properties": {
-                                        "width": { "type": "number" },
-                                        "height": { "type": "number" }
-                                    }
-                                }
-                            },
-                            "required": ["type", "url"]
-                        }
-                    ]
-                }
-            },
-            "required": ["id", "content"]
-        }
-        "#;
-
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
-
-        let type_interface = get_interface_from_schema("MessageAny", &ReferenceOr::Item(schema));
-
-        let expected = r##"interface MessageAny {
-  id: string;
-  content: {
-    type: "text";
-    text: string;
-  } | {
-    type: "image";
-    url: string;
-    dimensions?: {
-      width?: number;
-      height?: number;
-    };
-  };
+  departments: {
+    name: string;
+    teams: {
+      teamName: string;
+      members: {
+        id: string;
+        name: string;
+        skills?: {
+          name: string;
+          level: number;
+          certifications?: string[];
+        }[];
+      }[];
+      projects?: string[];
+    }[];
+  }[];
 };"##;
 
         assert_eq!(type_interface.to_string(), expected.to_string());
@@ -892,18 +1020,89 @@ mod tests {
 
         let type_interface = get_interface_from_schema("DeepArray", &ReferenceOr::Item(schema));
 
-        let expected = r##"interface DeepArray {
+        let expected = r##"type DeepArray = {
   id: string;
   metadata: {
     title: string;
-    tags: string[] | {
+    tags: (string | {
       name: string;
       value: number;
       metadata?: {
         description: string;
         priority?: number;
       };
-    }[];
+    })[];
+  };
+};"##;
+
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_nested_object_with_array_allof() {
+        let schema_json = r#"
+          {
+              "type": "object",
+              "properties": {
+                  "id": { "type": "string" },
+                  "metadata": {
+                      "type": "object",
+                      "properties": {
+                          "title": { "type": "string" },
+                          "tags": {
+                              "type": "array",
+                              "items": {
+                                  "allOf": [
+                                      {
+                                          "type": "object",
+                                          "properties": {
+                                              "id": { "type": "string" },
+                                              "type": { "type": "string" }
+                                          },
+                                          "required": ["id"]
+                                      },
+                                      {
+                                          "type": "object",
+                                          "properties": {
+                                              "metadata": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                      "description": { "type": "string" },
+                                                      "created": { "type": "string" }
+                                                  }
+                                              }
+                                          }
+                                      }
+                                  ]
+                              }
+                          }
+                      },
+                      "required": ["title", "tags"]
+                  }
+              },
+              "required": ["id", "metadata"]
+          }
+          "#;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface =
+            get_interface_from_schema("DeepArrayAllOf", &ReferenceOr::Item(schema));
+
+        let expected = r##"type DeepArrayAllOf = {
+  id: string;
+  metadata: {
+    title: string;
+    tags: ({
+      id: string;
+      type?: string;
+    } & {
+      metadata?: {
+        description?: string;
+        created?: string;
+      };
+    })[];
   };
 };"##;
 
@@ -958,18 +1157,18 @@ mod tests {
 
         let type_interface = get_interface_from_schema("DeepArrayAny", &ReferenceOr::Item(schema));
 
-        let expected = r##"interface DeepArrayAny {
+        let expected = r##"type DeepArrayAny = {
   id: string;
   metadata: {
     title: string;
-    tags: string[] | {
+    tags: (string | {
       name: string;
       value: number;
       metadata?: {
         description: string;
         priority?: number;
       };
-    }[];
+    })[];
   };
 };"##;
 
@@ -1004,7 +1203,7 @@ mod tests {
 
         let type_interface = get_interface_from_schema("DeepRefArray", &ReferenceOr::Item(schema));
 
-        let expected = r##"interface DeepRefArray {
+        let expected = r##"type DeepRefArray = {
   id: string;
   data: {
     name: string;
