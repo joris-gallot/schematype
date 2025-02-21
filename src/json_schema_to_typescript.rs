@@ -114,6 +114,10 @@ impl TypeInterface {
     fn type_object_to_string(object: &ObjectOrPrimitiveOrRef, depth: usize) -> String {
         match object {
             ObjectOrPrimitiveOrRef::TypeObject(type_object) => {
+                if type_object.properties.is_empty() {
+                    return "{}".to_string();
+                }
+
                 let mut object_string = Vec::new();
 
                 for property in &type_object.properties {
@@ -406,6 +410,31 @@ pub fn schema_to_typescript(name: &str, schema: &ReferenceOr<Schema>) -> TypeInt
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_empty_object() {
+        let schema_json = r#"
+        {
+            "type": "object",
+            "properties": {
+                "metadata": {
+                    "type": "object",
+                    "properties": {}
+                }
+            }
+        }
+        "#;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface = schema_to_typescript("EmptyObject", &ReferenceOr::Item(schema));
+
+        let expected = r##"type EmptyObject = {
+  metadata?: {};
+};"##;
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
 
     #[test]
     fn test_basic_object() {
