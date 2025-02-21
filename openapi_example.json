@@ -16,9 +16,24 @@
       "description": "Main server"
     }
   ],
+  "tags": [
+    {
+      "name": "Books",
+      "description": "Operations related to books"
+    },
+    {
+      "name": "Users",
+      "description": "Operations related to library users"
+    },
+    {
+      "name": "Search",
+      "description": "Search operations"
+    }
+  ],
   "paths": {
     "/books": {
       "get": {
+        "tags": ["Books"],
         "summary": "List all books",
         "description": "Retrieve a list of all books in the library.",
         "responses": {
@@ -38,6 +53,7 @@
         }
       },
       "post": {
+        "tags": ["Books"],
         "summary": "Add a new book",
         "description": "Add a new book to the library.",
         "requestBody": {
@@ -66,6 +82,7 @@
     },
     "/books/{bookId}": {
       "get": {
+        "tags": ["Books"],
         "summary": "Get a book by ID",
         "description": "Retrieve a single book by its ID.",
         "parameters": [
@@ -96,6 +113,7 @@
         }
       },
       "put": {
+        "tags": ["Books"],
         "summary": "Update a book",
         "description": "Update a book's information.",
         "parameters": [
@@ -136,6 +154,7 @@
         }
       },
       "delete": {
+        "tags": ["Books"],
         "summary": "Delete a book",
         "description": "Delete a book by its ID.",
         "parameters": [
@@ -161,6 +180,7 @@
     },
     "/search": {
       "get": {
+        "tags": ["Search"],
         "summary": "Search books",
         "description": "Search for books based on various criteria.",
         "parameters": [
@@ -209,6 +229,153 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "List all users",
+        "description": "Retrieve a list of all library users.",
+        "responses": {
+          "200": {
+            "description": "A JSON array of user objects",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LibraryUser"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Users"],
+        "summary": "Add a new user",
+        "description": "Add a new user to the library system.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewUser"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryUser"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{userId}": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get a user by ID",
+        "description": "Retrieve a single user by their ID.",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "ID of the user to retrieve",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A single user object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryUser"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Users"],
+        "summary": "Update a user",
+        "description": "Update a user's information.",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "ID of the user to update",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewUser"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryUser"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Users"],
+        "summary": "Delete a user",
+        "description": "Delete a user by their ID.",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "ID of the user to delete",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "User deleted successfully"
+          },
+          "404": {
+            "description": "User not found"
           }
         }
       }
@@ -408,6 +575,24 @@
             "description": "Address details of the user"
           }
         }
+      },
+      "NewUser": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/LibraryUser"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "password": {
+                "type": "string",
+                "format": "password",
+                "description": "Password of the user"
+              }
+            },
+            "required": ["password"]
+          }
+        ]
       }
     }
   }
