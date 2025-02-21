@@ -97,6 +97,20 @@ impl TypeInterface {
         }
     }
 
+    fn format_string_expression(
+        expression: &Expression,
+        exp_string: String,
+        need_parentheses: bool,
+    ) -> String {
+        format!(
+            "{}{}{}{}",
+            if need_parentheses { "(" } else { "" },
+            exp_string,
+            if need_parentheses { ")" } else { "" },
+            if expression.is_array { "[]" } else { "" }
+        )
+    }
+
     fn type_object_to_string(object: &ObjectOrPrimitiveOrRef, depth: usize) -> String {
         match object {
             ObjectOrPrimitiveOrRef::TypeObject(type_object) => {
@@ -130,12 +144,10 @@ impl TypeInterface {
                             let need_parentheses = expression.link.is_some()
                                 && (expression.is_array || expression.types.len() > 1);
 
-                            format!(
-                                "{}{}{}{}",
-                                if need_parentheses { "(" } else { "" },
+                            TypeInterface::format_string_expression(
+                                expression,
                                 exp_string,
-                                if need_parentheses { ")" } else { "" },
-                                if expression.is_array { "[]" } else { "" }
+                                need_parentheses,
                             )
                         })
                         .collect::<Vec<String>>()
@@ -183,16 +195,10 @@ impl TypeInterface {
                     .collect::<Vec<String>>()
                     .join(TypeInterface::get_separator(&expression.link));
 
-                let need_parentheses = (expression.link.is_some() && expression.is_array)
-                    || (expression.link.is_some() && self.expressions.len() > 1);
+                let need_parentheses = expression.link.is_some()
+                    && (expression.is_array || self.expressions.len() > 1);
 
-                format!(
-                    "{}{}{}{}",
-                    if need_parentheses { "(" } else { "" },
-                    exp_string,
-                    if need_parentheses { ")" } else { "" },
-                    if expression.is_array { "[]" } else { "" }
-                )
+                TypeInterface::format_string_expression(expression, exp_string, need_parentheses)
             })
             .collect::<Vec<String>>();
 
