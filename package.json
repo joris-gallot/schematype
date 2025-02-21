@@ -1,0 +1,61 @@
+{
+  "name": "@typeme/core",
+  "version": "0.0.1",
+  "packageManager": "pnpm@9.15.5",
+  "description": "",
+  "author": "",
+  "license": "MIT",
+  "keywords": [],
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.d.ts",
+    "index.js"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "napi": {
+    "name": "typeme",
+    "triples": {
+      "additional": [
+        "aarch64-apple-darwin",
+        "aarch64-unknown-linux-gnu",
+        "aarch64-unknown-linux-musl",
+        "aarch64-pc-windows-msvc",
+        "armv7-unknown-linux-gnueabihf",
+        "armv7-unknown-linux-musleabihf",
+        "x86_64-unknown-linux-musl",
+        "x86_64-unknown-freebsd",
+        "i686-pc-windows-msvc",
+        "universal-apple-darwin",
+        "riscv64gc-unknown-linux-gnu"
+      ]
+    }
+  },
+  "ava": {
+    "extensions": [
+      "mjs"
+    ],
+    "workerThreads": false
+  },
+  "scripts": {
+    "debug": "vite-node node/debug.ts",
+    "test": "ava",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "prepublishOnly": "napi prepublish -t npm",
+    "universal": "napi universal",
+    "version": "napi version",
+    "artifacts": "napi artifacts"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^4.3.0",
+    "@napi-rs/cli": "^2.18.4",
+    "ava": "^6.2.0",
+    "eslint": "^9.20.1",
+    "vite-node": "^3.0.6"
+  }
+}

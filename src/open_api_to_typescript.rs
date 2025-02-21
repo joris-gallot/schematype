@@ -53,8 +53,8 @@ impl OpenApiClient {
                         );
 
                         Some(crate::json_schema_to_typescript::schema_to_typescript(
-                            &request_interface_name,
-                            request_body,
+                            request_interface_name,
+                            request_body.clone(),
                         ))
                     }
                     None => None,
@@ -69,8 +69,8 @@ impl OpenApiClient {
                             OpenApiClient::get_interface_name(&path.path, &path.method)
                         );
                         let interface = crate::json_schema_to_typescript::schema_to_typescript(
-                            &interface_name,
-                            &response.schema,
+                            interface_name,
+                            response.schema.clone(),
                         );
 
                         format!("{}", interface.to_string())
