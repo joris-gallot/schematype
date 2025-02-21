@@ -222,6 +222,19 @@ impl SchemaLike for Box<Schema> {
     }
 }
 
+fn get_number_expression(is_array: bool) -> Expression {
+    Expression {
+        types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
+            PrimitiveProperty {
+                primitive_type: PrimitiveType::Number,
+                enumeration: vec![],
+            },
+        )],
+        is_array: is_array,
+        link: None,
+    }
+}
+
 fn schema_to_typescript_any_one_all_of_types(
     schema: &Vec<ReferenceOr<Schema>>,
     is_array: bool,
@@ -269,16 +282,10 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
                     });
                 }
                 SchemaKind::Type(Type::Number(_)) => {
-                    expressions.push(Expression {
-                        types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
-                            PrimitiveProperty {
-                                primitive_type: PrimitiveType::Number,
-                                enumeration: vec![],
-                            },
-                        )],
-                        is_array: is_array,
-                        link: None,
-                    });
+                    expressions.push(get_number_expression(is_array));
+                }
+                SchemaKind::Type(Type::Integer(_)) => {
+                    expressions.push(get_number_expression(is_array));
                 }
                 SchemaKind::Type(Type::Boolean(_)) => {
                     expressions.push(Expression {
@@ -404,7 +411,8 @@ mod tests {
                 "title": { "type": "string" },
                 "author": { "type": "string" },
                 "publishedDate": { "type": "string", "format": "date" },
-                "rating": { "type": "number", "format": "float" }
+                "rating": { "type": "number", "format": "float" },
+                "age": { "type": "integer" }
             }
         }
         "#;
@@ -420,6 +428,7 @@ mod tests {
   author?: string;
   publishedDate?: string;
   rating?: number;
+  age?: number;
 };"##;
         assert_eq!(type_interface.to_string(), expected.to_string());
     }
