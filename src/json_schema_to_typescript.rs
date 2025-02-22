@@ -165,55 +165,60 @@ impl TypeInterface {
                     return "{}".to_string();
                 }
 
-                let mut object_string = Vec::new();
+                let object_string = type_object
+                    .properties
+                    .iter()
+                    .map(|property| {
+                        let ts_types_string = property
+                            .expressions
+                            .iter()
+                            .map(|expression| {
+                                let expression_is_array =
+                                    TypeInterface::expression_is_array(expression);
 
-                for property in &type_object.properties {
-                    let ts_types_string = property
-                        .expressions
-                        .iter()
-                        .map(|expression| {
-                            let expression_is_array =
-                                TypeInterface::expression_is_array(expression);
+                                let exp_string = expression
+                                    .types
+                                    .iter()
+                                    .map(|t| match t {
+                                        ObjectOrPrimitiveOrRef::TypeObject(obj) => {
+                                            TypeInterface::type_object_to_string(
+                                                &ObjectOrPrimitiveOrRef::TypeObject(obj.clone()),
+                                                depth + 1,
+                                                expression_is_array,
+                                            )
+                                        }
+                                        ObjectOrPrimitiveOrRef::PrimitiveProperty(primitive) => {
+                                            TypeInterface::primitive_to_string(
+                                                primitive,
+                                                expression_is_array,
+                                            )
+                                        }
+                                        ObjectOrPrimitiveOrRef::RefProperty(reference) => {
+                                            TypeInterface::reference_to_string(reference)
+                                        }
+                                    })
+                                    .collect::<Vec<String>>()
+                                    .join(TypeInterface::get_separator(&expression.link));
 
-                            let exp_string = expression
-                                .types
-                                .iter()
-                                .map(|t| match t {
-                                    ObjectOrPrimitiveOrRef::TypeObject(obj) => {
-                                        TypeInterface::type_object_to_string(
-                                            &ObjectOrPrimitiveOrRef::TypeObject(obj.clone()),
-                                            depth + 1,
-                                            expression_is_array,
-                                        )
-                                    }
-                                    ObjectOrPrimitiveOrRef::PrimitiveProperty(primitive) => {
-                                        TypeInterface::primitive_to_string(
-                                            primitive,
-                                            expression_is_array,
-                                        )
-                                    }
-                                    ObjectOrPrimitiveOrRef::RefProperty(reference) => {
-                                        TypeInterface::reference_to_string(reference)
-                                    }
-                                })
-                                .collect::<Vec<String>>()
-                                .join(TypeInterface::get_separator(&expression.link));
+                                TypeInterface::format_string_expression(
+                                    exp_string,
+                                    expression_is_array,
+                                )
+                            })
+                            .collect::<Vec<String>>()
+                            .join(TypeInterface::get_separator(&Some(
+                                UnionOrIntersection::Union,
+                            )));
 
-                            TypeInterface::format_string_expression(exp_string, expression_is_array)
-                        })
-                        .collect::<Vec<String>>()
-                        .join(TypeInterface::get_separator(&Some(
-                            UnionOrIntersection::Union,
-                        )));
-
-                    object_string.push(format!(
-                        "{}{}{}: {};",
-                        "  ".repeat(depth),
-                        property.name,
-                        if property.required { "" } else { "?" },
-                        ts_types_string,
-                    ));
-                }
+                        format!(
+                            "{}{}{}: {};",
+                            "  ".repeat(depth),
+                            property.name,
+                            if property.required { "" } else { "?" },
+                            ts_types_string,
+                        )
+                    })
+                    .collect::<Vec<String>>();
 
                 format!(
                     "{{\n{}\n{}}}{}",
