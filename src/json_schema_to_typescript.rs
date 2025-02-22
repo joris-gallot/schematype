@@ -459,8 +459,17 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
                     link: Some(UnionOrIntersection::Intersection),
                 }],
                 _ => {
-                    println!("unknown schema kind for {:?}", schema);
-                    vec![]
+                    println!("schema type not recognized, defaulting to any type");
+                    vec![Expression {
+                        types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
+                            PrimitiveProperty {
+                                primitive_type: PrimitiveType::Any,
+                                enumeration: vec![],
+                                is_array: is_array,
+                            },
+                        )],
+                        link: None,
+                    }]
                 }
             };
 
@@ -1024,6 +1033,40 @@ mod tests {
   id: string;
   value: "low" | "medium" | "high" | 0 | 1 | 2 | 0.5 | 1.5 | 2.5 | ("A" | "B" | "C")[] | true | false;
   mixedArray: ("red" | "green" | "blue" | 1 | 2 | 3 | true | "small" | "medium" | "large")[];
+};"##;
+
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_object_with_invalid_property() {
+        let schema_json = r#"
+        {
+            "type": "object",
+            "properties": {
+                "invalid_property": {
+                    "required": ["invalid_property"],
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "number"
+                        }
+                    ]
+                }
+            }
+        }
+        "#;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface =
+            schema_to_typescript("InvalidObject".to_string(), ReferenceOr::Item(schema));
+
+        let expected = r##"type InvalidObject = {
+  invalid_property?: any;
 };"##;
 
         assert_eq!(type_interface.to_string(), expected.to_string());
