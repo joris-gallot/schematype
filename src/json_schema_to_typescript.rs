@@ -1,4 +1,4 @@
-use openapiv3::{ReferenceOr, Schema, SchemaKind, Type};
+use openapiv3::{IntegerType, NumberType, ReferenceOr, Schema, SchemaKind, StringType, Type};
 
 #[derive(Debug, Clone)]
 enum ObjectOrPrimitiveOrRef {
@@ -103,13 +103,24 @@ impl TypeInterface {
                 }
             }
             PrimitiveType::Number => {
-                if expression_is_array {
-                    "number".to_string()
+                if primitive.enumeration.is_empty() {
+                    if expression_is_array {
+                        "number".to_string()
+                    } else {
+                        primitive
+                            .is_array
+                            .then_some("number[]".to_string())
+                            .unwrap_or("number".to_string())
+                    }
                 } else {
-                    primitive
-                        .is_array
-                        .then_some("number[]".to_string())
-                        .unwrap_or("number".to_string())
+                    format!(
+                        "{}",
+                        primitive
+                            .enumeration
+                            .join(TypeInterface::get_separator(&Some(
+                                UnionOrIntersection::Union
+                            )))
+                    )
                 }
             }
             PrimitiveType::Boolean => {
@@ -279,28 +290,62 @@ impl TypeInterface {
     }
 }
 
-trait SchemaLike {
-    fn as_schema(&self) -> &Schema;
+trait HasEnumeration {
+    type ReturnType;
+    fn get_enumeration(&self) -> &Vec<Option<Self::ReturnType>>;
+    fn to_string(&self, value: &Self::ReturnType) -> String;
 }
 
-impl SchemaLike for Schema {
-    fn as_schema(&self) -> &Schema {
-        self
+impl HasEnumeration for NumberType {
+    type ReturnType = f64;
+    fn get_enumeration(&self) -> &Vec<Option<Self::ReturnType>> {
+        &self.enumeration
+    }
+    fn to_string(&self, value: &Self::ReturnType) -> String {
+        value.to_string()
     }
 }
 
-impl SchemaLike for Box<Schema> {
-    fn as_schema(&self) -> &Schema {
-        self.as_ref()
+impl HasEnumeration for IntegerType {
+    type ReturnType = i64;
+    fn get_enumeration(&self) -> &Vec<Option<Self::ReturnType>> {
+        &self.enumeration
+    }
+    fn to_string(&self, value: &Self::ReturnType) -> String {
+        value.to_string()
     }
 }
 
-fn get_number_expression(is_array: bool) -> Expression {
+impl HasEnumeration for StringType {
+    type ReturnType = String;
+    fn get_enumeration(&self) -> &Vec<Option<Self::ReturnType>> {
+        &self.enumeration
+    }
+    fn to_string(&self, value: &Self::ReturnType) -> String {
+        value.to_string()
+    }
+}
+
+fn get_string_number_expression<T>(
+    type_with_enum: &T,
+    primitive_type: PrimitiveType,
+    is_array: bool,
+) -> Expression
+where
+    T: HasEnumeration,
+{
+    let enumeration = type_with_enum
+        .get_enumeration()
+        .iter()
+        .filter(|s| s.is_some())
+        .map(|s| T::to_string(type_with_enum, s.as_ref().unwrap()))
+        .collect::<Vec<String>>();
+
     Expression {
         types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
             PrimitiveProperty {
-                primitive_type: PrimitiveType::Number,
-                enumeration: vec![],
+                primitive_type: primitive_type,
+                enumeration: enumeration,
                 is_array: is_array,
             },
         )],
@@ -324,6 +369,22 @@ fn schema_to_typescript_any_one_all_of_types(
         .collect()
 }
 
+trait SchemaLike {
+    fn as_schema(&self) -> &Schema;
+}
+
+impl SchemaLike for Schema {
+    fn as_schema(&self) -> &Schema {
+        self
+    }
+}
+
+impl SchemaLike for Box<Schema> {
+    fn as_schema(&self) -> &Schema {
+        self.as_ref()
+    }
+}
+
 fn schema_to_typescript_expressions<T: SchemaLike>(
     schema: &ReferenceOr<T>,
     is_array: bool,
@@ -336,29 +397,25 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
 
             match &schema.schema_kind {
                 SchemaKind::Type(Type::String(string_type)) => {
-                    let enumeration = string_type
-                        .enumeration
-                        .iter()
-                        .filter(|s| s.is_some())
-                        .map(|s| s.as_ref().unwrap().to_string())
-                        .collect::<Vec<String>>();
-
-                    expressions.push(Expression {
-                        types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
-                            PrimitiveProperty {
-                                primitive_type: PrimitiveType::String,
-                                enumeration: enumeration,
-                                is_array: is_array,
-                            },
-                        )],
-                        link: None,
-                    });
+                    expressions.push(get_string_number_expression(
+                        string_type,
+                        PrimitiveType::String,
+                        is_array,
+                    ));
                 }
-                SchemaKind::Type(Type::Number(_)) => {
-                    expressions.push(get_number_expression(is_array));
+                SchemaKind::Type(Type::Number(number_type)) => {
+                    expressions.push(get_string_number_expression(
+                        number_type,
+                        PrimitiveType::Number,
+                        is_array,
+                    ));
                 }
-                SchemaKind::Type(Type::Integer(_)) => {
-                    expressions.push(get_number_expression(is_array));
+                SchemaKind::Type(Type::Integer(integer_type)) => {
+                    expressions.push(get_string_number_expression(
+                        integer_type,
+                        PrimitiveType::Number,
+                        is_array,
+                    ));
                 }
                 SchemaKind::Type(Type::Boolean(_)) => {
                     expressions.push(Expression {
@@ -636,7 +693,7 @@ mod tests {
     }
 
     #[test]
-    fn test_object_with_enum() {
+    fn test_object_with_string_enum() {
         let schema_json = r#"
         {
             "type": "object",
@@ -665,6 +722,76 @@ mod tests {
   id: string;
   status: "draft" | "published" | "archived";
   visibility?: "public" | "private" | null;
+};"##;
+
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_object_with_number_enum() {
+        let schema_json = r#"
+        {
+            "type": "object", 
+            "properties": {
+                "id": { "type": "string" },
+                "priority": {
+                    "type": "number",
+                    "enum": [1.5, 2.5, 3.5]
+                },
+                "score": {
+                    "type": "number",
+                    "enum": [0.5, 1.0],
+                    "nullable": true
+                }
+            },
+            "required": ["id", "priority"]
+        }
+        "#;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface = schema_to_typescript("Task".to_string(), ReferenceOr::Item(schema));
+
+        let expected = r##"type Task = {
+  id: string;
+  priority: 1.5 | 2.5 | 3.5;
+  score?: 0.5 | 1 | null;
+};"##;
+
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_object_with_integer_enum() {
+        let schema_json = r#"
+        {
+            "type": "object",
+            "properties": {
+                "id": { "type": "string" },
+                "level": {
+                    "type": "integer",
+                    "enum": [1, 2, 3]
+                },
+                "grade": {
+                    "type": "integer", 
+                    "enum": [0, 1],
+                    "nullable": true
+                }
+            },
+            "required": ["id", "level"]
+        }
+        "#;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface = schema_to_typescript("Grade".to_string(), ReferenceOr::Item(schema));
+
+        let expected = r##"type Grade = {
+  id: string;
+  level: 1 | 2 | 3;
+  grade?: 0 | 1 | null;
 };"##;
 
         assert_eq!(type_interface.to_string(), expected.to_string());
