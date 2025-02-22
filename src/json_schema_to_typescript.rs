@@ -461,12 +461,13 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
     }
 }
 
-pub fn schema_to_typescript(name: &str, schema: &ReferenceOr<Schema>) -> TypeInterface {
+pub fn schema_to_typescript(name: String, schema: ReferenceOr<Schema>) -> TypeInterface {
     TypeInterface {
-        name: name.to_string(),
-        expressions: schema_to_typescript_expressions(schema, false, None),
+        name: name,
+        expressions: schema_to_typescript_expressions(&schema, false, None),
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -488,7 +489,8 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("EmptyObject", &ReferenceOr::Item(schema));
+        let type_interface =
+            schema_to_typescript("EmptyObject".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type EmptyObject = {
   metadata?: {};
@@ -515,7 +517,7 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("Book", &ReferenceOr::Item(schema));
+        let type_interface = schema_to_typescript("Book".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type Book = {
   id?: string;
@@ -544,7 +546,8 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("BookMetadata", &ReferenceOr::Item(schema));
+        let type_interface =
+            schema_to_typescript("BookMetadata".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type BookMetadata = {
   id?: string;
@@ -573,7 +576,7 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("NewBook", &ReferenceOr::Item(schema));
+        let type_interface = schema_to_typescript("NewBook".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type NewBook = {
   title: string;
@@ -620,7 +623,7 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("Review", &ReferenceOr::Item(schema));
+        let type_interface = schema_to_typescript("Review".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type Review = {
   reviewer?: string;
@@ -656,7 +659,7 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("Post", &ReferenceOr::Item(schema));
+        let type_interface = schema_to_typescript("Post".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type Post = {
   id: string;
@@ -688,7 +691,8 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("SearchCriteria", &ReferenceOr::Item(schema));
+        let type_interface =
+            schema_to_typescript("SearchCriteria".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type SearchCriteria = Book | {
   query?: string;
@@ -720,7 +724,8 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("BookWithMetadata", &ReferenceOr::Item(schema));
+        let type_interface =
+            schema_to_typescript("BookWithMetadata".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type BookWithMetadata = Book & {
   query?: string;
@@ -762,7 +767,8 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("UserInfo", &ReferenceOr::Item(schema));
+        let type_interface =
+            schema_to_typescript("UserInfo".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type UserInfo = {
   name: string;
@@ -800,7 +806,8 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("MixedArray", &ReferenceOr::Item(schema));
+        let type_interface =
+            schema_to_typescript("MixedArray".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type MixedArray = (string | number | {
   name: string;
@@ -844,7 +851,8 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("CombinedArray", &ReferenceOr::Item(schema));
+        let type_interface =
+            schema_to_typescript("CombinedArray".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type CombinedArray = ({
   id: string;
@@ -884,7 +892,8 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("MixedAnyArray", &ReferenceOr::Item(schema));
+        let type_interface =
+            schema_to_typescript("MixedAnyArray".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type MixedAnyArray = (string | number | {
   name: string;
@@ -944,7 +953,8 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("MixedValue", &ReferenceOr::Item(schema));
+        let type_interface =
+            schema_to_typescript("MixedValue".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type MixedValue = {
   key: string;
@@ -1007,7 +1017,8 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("MixedValue", &ReferenceOr::Item(schema));
+        let type_interface =
+            schema_to_typescript("MixedValue".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type MixedValue = {
   key: string;
@@ -1053,7 +1064,8 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("Location", &ReferenceOr::Item(schema));
+        let type_interface =
+            schema_to_typescript("Location".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type Location = {
   id: string;
@@ -1101,7 +1113,7 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("Product", &ReferenceOr::Item(schema));
+        let type_interface = schema_to_typescript("Product".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type Product = {
   id: string;
@@ -1179,7 +1191,8 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("Organization", &ReferenceOr::Item(schema));
+        let type_interface =
+            schema_to_typescript("Organization".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type Organization = {
   id: string;
@@ -1250,7 +1263,8 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("DeepArray", &ReferenceOr::Item(schema));
+        let type_interface =
+            schema_to_typescript("DeepArray".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type DeepArray = {
   id: string;
@@ -1319,7 +1333,8 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("DeepArrayAllOf", &ReferenceOr::Item(schema));
+        let type_interface =
+            schema_to_typescript("DeepArrayAllOf".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type DeepArrayAllOf = {
   id: string;
@@ -1386,7 +1401,8 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("DeepArrayAny", &ReferenceOr::Item(schema));
+        let type_interface =
+            schema_to_typescript("DeepArrayAny".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type DeepArrayAny = {
   id: string;
@@ -1432,7 +1448,8 @@ mod tests {
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("DeepRefArray", &ReferenceOr::Item(schema));
+        let type_interface =
+            schema_to_typescript("DeepRefArray".to_string(), ReferenceOr::Item(schema));
 
         let expected = r##"type DeepRefArray = {
   id: string;
