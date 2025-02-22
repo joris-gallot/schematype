@@ -459,7 +459,10 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
                     link: Some(UnionOrIntersection::Intersection),
                 }],
                 _ => {
-                    println!("schema type not recognized, defaulting to any type");
+                    println!(
+                        "schema type not recognized, defaulting to any type\n{:?}",
+                        schema.schema_kind
+                    );
                     vec![Expression {
                         types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
                             PrimitiveProperty {
