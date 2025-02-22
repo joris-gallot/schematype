@@ -383,57 +383,50 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
 ) -> Vec<Expression> {
     match schema {
         ReferenceOr::Item(schema) => {
-            let mut expressions: Vec<Expression> = Vec::new();
             let schema = schema.as_schema();
 
-            match &schema.schema_kind {
+            let base_expressions = match &schema.schema_kind {
                 SchemaKind::Type(Type::String(string_type)) => {
-                    expressions.push(get_primitive_expression(
+                    vec![get_primitive_expression(
                         string_type,
                         PrimitiveType::String,
                         is_array,
-                    ));
+                    )]
                 }
                 SchemaKind::Type(Type::Number(number_type)) => {
-                    expressions.push(get_primitive_expression(
+                    vec![get_primitive_expression(
                         number_type,
                         PrimitiveType::Number,
                         is_array,
-                    ));
+                    )]
                 }
                 SchemaKind::Type(Type::Integer(integer_type)) => {
-                    expressions.push(get_primitive_expression(
+                    vec![get_primitive_expression(
                         integer_type,
                         PrimitiveType::Number,
                         is_array,
-                    ));
+                    )]
                 }
                 SchemaKind::Type(Type::Boolean(boolean_type)) => {
-                    expressions.push(get_primitive_expression(
+                    vec![get_primitive_expression(
                         boolean_type,
                         PrimitiveType::Boolean,
                         is_array,
-                    ));
+                    )]
                 }
-                SchemaKind::Type(Type::Array(v)) => {
-                    let array_expressions: Vec<Expression> = match &v.items {
-                        Some(item) => {
-                            schema_to_typescript_expressions(item, true, separator.clone())
-                        }
-                        None => vec![Expression {
-                            types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
-                                PrimitiveProperty {
-                                    primitive_type: PrimitiveType::Any,
-                                    enumeration: vec![],
-                                    is_array: true,
-                                },
-                            )],
-                            link: None,
-                        }],
-                    };
-
-                    expressions.extend(array_expressions);
-                }
+                SchemaKind::Type(Type::Array(v)) => match &v.items {
+                    Some(item) => schema_to_typescript_expressions(item, true, separator.clone()),
+                    None => vec![Expression {
+                        types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
+                            PrimitiveProperty {
+                                primitive_type: PrimitiveType::Any,
+                                enumeration: vec![],
+                                is_array: true,
+                            },
+                        )],
+                        link: None,
+                    }],
+                },
                 SchemaKind::Type(Type::Object(object)) => {
                     let properties: Vec<ObjectProperty> = object
                         .properties
@@ -445,52 +438,51 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
                         })
                         .collect();
 
-                    expressions.push(Expression {
+                    vec![Expression {
                         types: vec![ObjectOrPrimitiveOrRef::TypeObject(TypeObject {
                             properties,
                             is_array: is_array,
                         })],
                         link: None,
-                    });
+                    }]
                 }
-                SchemaKind::AnyOf { any_of } => {
-                    expressions.push(Expression {
-                        types: schema_to_typescript_any_one_all_of_types(any_of, is_array, None),
-                        link: Some(UnionOrIntersection::Union),
-                    });
-                }
-                SchemaKind::OneOf { one_of } => {
-                    expressions.push(Expression {
-                        types: schema_to_typescript_any_one_all_of_types(one_of, is_array, None),
-                        link: Some(UnionOrIntersection::Union),
-                    });
-                }
-                SchemaKind::AllOf { all_of } => {
-                    expressions.push(Expression {
-                        types: schema_to_typescript_any_one_all_of_types(all_of, is_array, None),
-                        link: Some(UnionOrIntersection::Intersection),
-                    });
-                }
+                SchemaKind::AnyOf { any_of } => vec![Expression {
+                    types: schema_to_typescript_any_one_all_of_types(any_of, is_array, None),
+                    link: Some(UnionOrIntersection::Union),
+                }],
+                SchemaKind::OneOf { one_of } => vec![Expression {
+                    types: schema_to_typescript_any_one_all_of_types(one_of, is_array, None),
+                    link: Some(UnionOrIntersection::Union),
+                }],
+                SchemaKind::AllOf { all_of } => vec![Expression {
+                    types: schema_to_typescript_any_one_all_of_types(all_of, is_array, None),
+                    link: Some(UnionOrIntersection::Intersection),
+                }],
                 _ => {
                     println!("unknown schema kind for {:?}", schema);
+                    vec![]
                 }
-            }
+            };
 
             if schema.schema_data.nullable {
-                if let Some(last_expression) = expressions.last_mut() {
-                    last_expression
-                        .types
-                        .push(ObjectOrPrimitiveOrRef::PrimitiveProperty(
-                            PrimitiveProperty {
-                                primitive_type: PrimitiveType::Null,
-                                enumeration: vec![],
-                                is_array: is_array,
-                            },
-                        ));
-                }
+                base_expressions
+                    .into_iter()
+                    .map(|mut expression| {
+                        expression
+                            .types
+                            .push(ObjectOrPrimitiveOrRef::PrimitiveProperty(
+                                PrimitiveProperty {
+                                    primitive_type: PrimitiveType::Null,
+                                    enumeration: vec![],
+                                    is_array: is_array,
+                                },
+                            ));
+                        expression
+                    })
+                    .collect()
+            } else {
+                base_expressions
             }
-
-            return expressions;
         }
         ReferenceOr::Reference { reference } => {
             let reference_name = reference.split('/').last().unwrap_or_default().to_string();
