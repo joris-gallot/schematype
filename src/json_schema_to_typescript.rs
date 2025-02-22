@@ -1,4 +1,6 @@
-use openapiv3::{IntegerType, NumberType, ReferenceOr, Schema, SchemaKind, StringType, Type};
+use openapiv3::{
+    BooleanType, IntegerType, NumberType, ReferenceOr, Schema, SchemaKind, StringType, Type,
+};
 
 #[derive(Debug, Clone)]
 enum ObjectOrPrimitiveOrRef {
@@ -76,99 +78,58 @@ impl TypeInterface {
             .unwrap_or(reference.reference.to_string())
     }
 
+    fn primitive_to_ts_string(primitive_type: &PrimitiveType) -> String {
+        match primitive_type {
+            PrimitiveType::String => "string".to_string(),
+            PrimitiveType::Number => "number".to_string(),
+            PrimitiveType::Boolean => "boolean".to_string(),
+            PrimitiveType::Null => "null".to_string(),
+            PrimitiveType::Any => "any".to_string(),
+        }
+    }
+
     fn primitive_to_string(primitive: &PrimitiveProperty, is_in_expression_array: bool) -> String {
-        match primitive.primitive_type {
-            PrimitiveType::String => {
-                if primitive.enumeration.is_empty() {
-                    if is_in_expression_array {
-                        "string".to_string()
-                    } else {
-                        primitive
-                            .is_array
-                            .then_some("string[]".to_string())
-                            .unwrap_or("string".to_string())
-                    }
-                } else {
-                    let enum_string = format!(
-                        "{}",
-                        primitive
-                            .enumeration
-                            .iter()
-                            .map(|s| format!("\"{}\"", s))
-                            .collect::<Vec<String>>()
-                            .join(TypeInterface::get_separator(&Some(
-                                UnionOrIntersection::Union
-                            )))
-                    );
+        let primitive_str = TypeInterface::primitive_to_ts_string(&primitive.primitive_type);
 
-                    if is_in_expression_array {
-                        enum_string
-                    } else {
-                        primitive
-                            .is_array
-                            .then_some(format!("({})[]", enum_string))
-                            .unwrap_or(enum_string)
-                    }
-                }
+        if primitive.enumeration.is_empty() {
+            if is_in_expression_array {
+                primitive_str
+            } else {
+                primitive
+                    .is_array
+                    .then_some(format!("{}[]", primitive_str))
+                    .unwrap_or(primitive_str)
             }
-            PrimitiveType::Number => {
-                if primitive.enumeration.is_empty() {
-                    if is_in_expression_array {
-                        "number".to_string()
-                    } else {
-                        primitive
-                            .is_array
-                            .then_some("number[]".to_string())
-                            .unwrap_or("number".to_string())
-                    }
-                } else {
-                    let enum_string = format!(
-                        "{}",
-                        primitive
-                            .enumeration
-                            .join(TypeInterface::get_separator(&Some(
-                                UnionOrIntersection::Union
-                            )))
-                    );
+        } else {
+            let enum_string = format!(
+                "{}",
+                primitive
+                    .enumeration
+                    .iter()
+                    .map(|s| {
+                        if matches!(primitive.primitive_type, PrimitiveType::String) {
+                            format!("\"{}\"", s)
+                        } else {
+                            s.to_string()
+                        }
+                    })
+                    .collect::<Vec<String>>()
+                    .join(TypeInterface::get_separator(&Some(
+                        UnionOrIntersection::Union
+                    )))
+            );
 
-                    if is_in_expression_array {
-                        enum_string
+            if is_in_expression_array {
+                enum_string
+            } else {
+                if primitive.is_array {
+                    if primitive.enumeration.len() > 1 {
+                        format!("({})[]", enum_string)
                     } else {
-                        primitive
-                            .is_array
-                            .then_some(format!("({})[]", enum_string))
-                            .unwrap_or(enum_string)
+                        format!("{}[]", enum_string)
                     }
-                }
-            }
-            PrimitiveType::Boolean => {
-                if is_in_expression_array {
-                    "boolean".to_string()
                 } else {
-                    primitive
-                        .is_array
-                        .then_some("boolean[]".to_string())
-                        .unwrap_or("boolean".to_string())
-                }
-            }
-            PrimitiveType::Null => {
-                if is_in_expression_array {
-                    "null".to_string()
-                } else {
-                    primitive
-                        .is_array
-                        .then_some("null[]".to_string())
-                        .unwrap_or("null".to_string())
-                }
-            }
-            PrimitiveType::Any => {
-                if is_in_expression_array {
-                    "any".to_string()
-                } else {
-                    primitive
-                        .is_array
-                        .then_some("any[]".to_string())
-                        .unwrap_or("any".to_string())
+                    enum_string
                 }
             }
         }
@@ -341,7 +302,17 @@ impl HasEnumeration for StringType {
     }
 }
 
-fn get_string_number_expression<T>(
+impl HasEnumeration for BooleanType {
+    type ReturnType = bool;
+    fn get_enumeration(&self) -> &Vec<Option<Self::ReturnType>> {
+        &self.enumeration
+    }
+    fn to_string(&self, value: &Self::ReturnType) -> String {
+        value.to_string()
+    }
+}
+
+fn get_primitive_expression<T>(
     type_with_enum: &T,
     primitive_type: PrimitiveType,
     is_array: bool,
@@ -412,37 +383,32 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
 
             match &schema.schema_kind {
                 SchemaKind::Type(Type::String(string_type)) => {
-                    expressions.push(get_string_number_expression(
+                    expressions.push(get_primitive_expression(
                         string_type,
                         PrimitiveType::String,
                         is_array,
                     ));
                 }
                 SchemaKind::Type(Type::Number(number_type)) => {
-                    expressions.push(get_string_number_expression(
+                    expressions.push(get_primitive_expression(
                         number_type,
                         PrimitiveType::Number,
                         is_array,
                     ));
                 }
                 SchemaKind::Type(Type::Integer(integer_type)) => {
-                    expressions.push(get_string_number_expression(
+                    expressions.push(get_primitive_expression(
                         integer_type,
                         PrimitiveType::Number,
                         is_array,
                     ));
                 }
-                SchemaKind::Type(Type::Boolean(_)) => {
-                    expressions.push(Expression {
-                        types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
-                            PrimitiveProperty {
-                                primitive_type: PrimitiveType::Boolean,
-                                enumeration: vec![],
-                                is_array: is_array,
-                            },
-                        )],
-                        link: None,
-                    });
+                SchemaKind::Type(Type::Boolean(boolean_type)) => {
+                    expressions.push(get_primitive_expression(
+                        boolean_type,
+                        PrimitiveType::Boolean,
+                        is_array,
+                    ));
                 }
                 SchemaKind::Type(Type::Array(v)) => {
                     let array_expressions: Vec<Expression> = match &v.items {
@@ -724,6 +690,22 @@ mod tests {
                     "enum": ["public", "private"],
                     "nullable": true
                 },
+                "size": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": ["small"],
+                        "nullable": true
+                    }
+                },
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": ["medium"]
+                    },
+                    "nullable": true
+                },
                 "tags": {
                     "type": "array",
                     "items": {
@@ -739,6 +721,10 @@ mod tests {
                         "enum": ["tech", "science"],
                         "nullable": true
                     }
+                },
+                "isActive": {
+                    "type": "boolean",
+                    "enum": [true, false]
                 }
             },
             "required": ["id", "status"]
@@ -754,8 +740,11 @@ mod tests {
   id: string;
   status: "draft" | "published" | "archived";
   visibility?: "public" | "private" | null;
+  size?: ("small" | null)[];
+  options?: "medium"[] | null;
   tags?: ("featured" | "trending" | "new")[] | null;
   categories?: ("tech" | "science" | null)[];
+  isActive?: true | false;
 };"##;
 
         assert_eq!(type_interface.to_string(), expected.to_string());
@@ -777,6 +766,22 @@ mod tests {
                     "enum": [0.5, 1.0],
                     "nullable": true
                 },
+                "size": {
+                    "type": "array",
+                    "items": {
+                        "type": "number",
+                        "enum": [1]
+                    },
+                    "nullable": true
+                },
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "type": "number",
+                        "enum": [1]
+                    },
+                    "nullable": true
+                },
                 "weights": {
                     "type": "array",
                     "items": {
@@ -792,6 +797,10 @@ mod tests {
                         "enum": [1.1, 2.2],
                         "nullable": true
                     }
+                },
+                "isEnabled": {
+                    "type": "boolean",
+                    "enum": [true]
                 }
             },
             "required": ["id", "priority"]
@@ -807,8 +816,11 @@ mod tests {
   id: string;
   priority: 1.5 | 2.5 | 3.5;
   score?: 0.5 | 1 | null;
+  size?: 1[] | null;
+  options?: 1[] | null;
   weights?: (0.1 | 0.2 | 0.3)[] | null;
   metrics?: (1.1 | 2.2 | null)[];
+  isEnabled?: true;
 };"##;
 
         assert_eq!(type_interface.to_string(), expected.to_string());
@@ -830,6 +842,22 @@ mod tests {
                     "enum": [0, 1],
                     "nullable": true
                 },
+                "size": {
+                    "type": "array",
+                    "items": {
+                        "type": "number",
+                        "enum": [2]
+                    },
+                    "nullable": true
+                },
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "type": "number",
+                        "enum": [2]
+                    },
+                    "nullable": true
+                },
                 "stages": {
                     "type": "array",
                     "items": {
@@ -845,6 +873,10 @@ mod tests {
                         "enum": [100, 200],
                         "nullable": true
                     }
+                },
+                "isPublic": {
+                    "type": "boolean",
+                    "enum": [false]
                 }
             },
             "required": ["id", "level"]
@@ -860,8 +892,64 @@ mod tests {
   id: string;
   level: 1 | 2 | 3;
   grade?: 0 | 1 | null;
+  size?: 2[] | null;
+  options?: 2[] | null;
   stages?: (10 | 20 | 30)[] | null;
   points?: (100 | 200 | null)[];
+  isPublic?: false;
+};"##;
+
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_object_with_boolean_enum() {
+        let schema_json = r#"
+        {
+            "type": "object",
+            "properties": {
+                "id": { "type": "string" },
+                "isActive": {
+                    "type": "boolean",
+                    "enum": [true]
+                },
+                "isPublic": {
+                    "type": "boolean",
+                    "enum": [false],
+                    "nullable": true
+                },
+                "flags": {
+                    "type": "array",
+                    "items": {
+                        "type": "boolean",
+                        "enum": [true]
+                    },
+                    "nullable": true
+                },
+                "settings": {
+                    "type": "array",
+                    "items": {
+                        "type": "boolean",
+                        "enum": [false],
+                        "nullable": true
+                    }
+                }
+            },
+            "required": ["id", "isActive"]
+        }
+        "#;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface = schema_to_typescript("Config".to_string(), ReferenceOr::Item(schema));
+
+        let expected = r##"type Config = {
+  id: string;
+  isActive: true;
+  isPublic?: false | null;
+  flags?: true[] | null;
+  settings?: (false | null)[];
 };"##;
 
         assert_eq!(type_interface.to_string(), expected.to_string());
@@ -894,6 +982,10 @@ mod tests {
                                 "type": "string",
                                 "enum": ["A", "B", "C"]
                             }
+                        },
+                        {
+                            "type": "boolean",
+                            "enum": [true, false]
                         }
                     ]
                 },
@@ -910,7 +1002,8 @@ mod tests {
                                 "enum": [1, 2, 3]
                             },
                             {
-                                "type": "boolean"
+                                "type": "boolean",
+                                "enum": [true]
                             },
                             {
                                 "type": "string",
@@ -932,8 +1025,8 @@ mod tests {
 
         let expected = r##"type MixedEnum = {
   id: string;
-  value: "low" | "medium" | "high" | 0 | 1 | 2 | 0.5 | 1.5 | 2.5 | ("A" | "B" | "C")[];
-  mixedArray: ("red" | "green" | "blue" | 1 | 2 | 3 | boolean | "small" | "medium" | "large")[];
+  value: "low" | "medium" | "high" | 0 | 1 | 2 | 0.5 | 1.5 | 2.5 | ("A" | "B" | "C")[] | true | false;
+  mixedArray: ("red" | "green" | "blue" | 1 | 2 | 3 | true | "small" | "medium" | "large")[];
 };"##;
 
         assert_eq!(type_interface.to_string(), expected.to_string());
@@ -966,6 +1059,10 @@ mod tests {
                                 "type": "string",
                                 "enum": ["A", "B", "C"]
                             }
+                        },
+                        {
+                            "type": "boolean",
+                            "enum": [true, false]
                         }
                     ]
                 },
@@ -982,7 +1079,8 @@ mod tests {
                                 "enum": [1, 2, 3]
                             },
                             {
-                                "type": "boolean"
+                                "type": "boolean",
+                                "enum": [true]
                             },
                             {
                                 "type": "string",
@@ -1004,8 +1102,71 @@ mod tests {
 
         let expected = r##"type MixedEnum = {
   id: string;
-  value: "low" | "medium" | "high" | 0 | 1 | 2 | 0.5 | 1.5 | 2.5 | ("A" | "B" | "C")[];
-  mixedArray: ("red" | "green" | "blue" | 1 | 2 | 3 | boolean | "small" | "medium" | "large")[];
+  value: "low" | "medium" | "high" | 0 | 1 | 2 | 0.5 | 1.5 | 2.5 | ("A" | "B" | "C")[] | true | false;
+  mixedArray: ("red" | "green" | "blue" | 1 | 2 | 3 | true | "small" | "medium" | "large")[];
+};"##;
+
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_object_with_mixed_enums_allof() {
+        let schema_json = r#"
+        {
+            "type": "object",
+            "properties": {
+                "id": { "type": "string" },
+                "value": {
+                    "allOf": [
+                        {
+                            "type": "object",
+                            "properties": {
+                                "status": {
+                                    "type": "string",
+                                    "enum": ["active", "inactive"]
+                                }
+                            }
+                        },
+                        {
+                            "type": "object",
+                            "properties": {
+                                "priority": {
+                                    "type": "number",
+                                    "enum": [1, 2, 3]
+                                }
+                            }
+                        },
+                        {
+                            "type": "object",
+                            "properties": {
+                                "isEnabled": {
+                                    "type": "boolean",
+                                    "enum": [true]
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            "required": ["id", "value"]
+        }
+        "#;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface =
+            schema_to_typescript("MixedEnumAllOf".to_string(), ReferenceOr::Item(schema));
+
+        let expected = r##"type MixedEnumAllOf = {
+  id: string;
+  value: {
+    status?: "active" | "inactive";
+  } & {
+    priority?: 1 | 2 | 3;
+  } & {
+    isEnabled?: true;
+  };
 };"##;
 
         assert_eq!(type_interface.to_string(), expected.to_string());
