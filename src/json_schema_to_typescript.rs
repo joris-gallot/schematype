@@ -22,6 +22,7 @@ pub struct TypeInterface {
 #[derive(Debug, Clone)]
 struct TypeObject {
     properties: Vec<ObjectProperty>,
+    is_array: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -36,12 +37,14 @@ enum PrimitiveType {
 #[derive(Debug, Clone)]
 struct RefProperty {
     reference: String,
+    is_array: bool,
 }
 
 #[derive(Debug, Clone)]
 struct PrimitiveProperty {
     primitive_type: PrimitiveType,
     enumeration: Vec<String>,
+    is_array: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -55,7 +58,6 @@ struct ObjectProperty {
 struct Expression {
     types: Vec<ObjectOrPrimitiveOrRef>,
     link: Option<UnionOrIntersection>,
-    is_array: bool,
 }
 
 impl TypeInterface {
@@ -68,14 +70,24 @@ impl TypeInterface {
     }
 
     fn reference_to_string(reference: &RefProperty) -> String {
-        reference.reference.to_string()
+        reference
+            .is_array
+            .then_some(format!("{}[]", reference.reference))
+            .unwrap_or(reference.reference.to_string())
     }
 
-    fn primitive_to_string(primitive: &PrimitiveProperty) -> String {
+    fn primitive_to_string(primitive: &PrimitiveProperty, expression_is_array: bool) -> String {
         match primitive.primitive_type {
             PrimitiveType::String => {
                 if primitive.enumeration.is_empty() {
-                    "string".to_string()
+                    if expression_is_array {
+                        "string".to_string()
+                    } else {
+                        primitive
+                            .is_array
+                            .then_some("string[]".to_string())
+                            .unwrap_or("string".to_string())
+                    }
                 } else {
                     format!(
                         "{}",
@@ -90,28 +102,73 @@ impl TypeInterface {
                     )
                 }
             }
-            PrimitiveType::Number => "number".to_string(),
-            PrimitiveType::Boolean => "boolean".to_string(),
-            PrimitiveType::Null => "null".to_string(),
-            PrimitiveType::Any => "any".to_string(),
+            PrimitiveType::Number => {
+                if expression_is_array {
+                    "number".to_string()
+                } else {
+                    primitive
+                        .is_array
+                        .then_some("number[]".to_string())
+                        .unwrap_or("number".to_string())
+                }
+            }
+            PrimitiveType::Boolean => {
+                if expression_is_array {
+                    "boolean".to_string()
+                } else {
+                    primitive
+                        .is_array
+                        .then_some("boolean[]".to_string())
+                        .unwrap_or("boolean".to_string())
+                }
+            }
+            PrimitiveType::Null => {
+                if expression_is_array {
+                    "null".to_string()
+                } else {
+                    primitive
+                        .is_array
+                        .then_some("null[]".to_string())
+                        .unwrap_or("null".to_string())
+                }
+            }
+            PrimitiveType::Any => {
+                if expression_is_array {
+                    "any".to_string()
+                } else {
+                    primitive
+                        .is_array
+                        .then_some("any[]".to_string())
+                        .unwrap_or("any".to_string())
+                }
+            }
         }
     }
 
-    fn format_string_expression(
-        expression: &Expression,
-        exp_string: String,
-        need_parentheses: bool,
-    ) -> String {
+    fn format_string_expression(exp_string: String, need_array: bool) -> String {
         format!(
             "{}{}{}{}",
-            if need_parentheses { "(" } else { "" },
+            if need_array { "(" } else { "" },
             exp_string,
-            if need_parentheses { ")" } else { "" },
-            if expression.is_array { "[]" } else { "" }
+            if need_array { ")" } else { "" },
+            if need_array { "[]" } else { "" }
         )
     }
 
-    fn type_object_to_string(object: &ObjectOrPrimitiveOrRef, depth: usize) -> String {
+    fn expression_is_array(expression: &Expression) -> bool {
+        expression.types.len() > 1
+            && expression.types.iter().all(|t| match t {
+                ObjectOrPrimitiveOrRef::TypeObject(obj) => obj.is_array,
+                ObjectOrPrimitiveOrRef::PrimitiveProperty(primitive) => primitive.is_array,
+                ObjectOrPrimitiveOrRef::RefProperty(reference) => reference.is_array,
+            })
+    }
+
+    fn type_object_to_string(
+        object: &ObjectOrPrimitiveOrRef,
+        depth: usize,
+        expression_is_array: bool,
+    ) -> String {
         match object {
             ObjectOrPrimitiveOrRef::TypeObject(type_object) => {
                 if type_object.properties.is_empty() {
@@ -125,6 +182,9 @@ impl TypeInterface {
                         .expressions
                         .iter()
                         .map(|expression| {
+                            let expression_need_array =
+                                TypeInterface::expression_is_array(expression);
+
                             let exp_string = expression
                                 .types
                                 .iter()
@@ -133,10 +193,14 @@ impl TypeInterface {
                                         TypeInterface::type_object_to_string(
                                             &ObjectOrPrimitiveOrRef::TypeObject(obj.clone()),
                                             depth + 1,
+                                            expression_need_array,
                                         )
                                     }
                                     ObjectOrPrimitiveOrRef::PrimitiveProperty(primitive) => {
-                                        TypeInterface::primitive_to_string(primitive)
+                                        TypeInterface::primitive_to_string(
+                                            primitive,
+                                            expression_need_array,
+                                        )
                                     }
                                     ObjectOrPrimitiveOrRef::RefProperty(reference) => {
                                         TypeInterface::reference_to_string(reference)
@@ -145,13 +209,9 @@ impl TypeInterface {
                                 .collect::<Vec<String>>()
                                 .join(TypeInterface::get_separator(&expression.link));
 
-                            let need_parentheses = expression.link.is_some()
-                                && (expression.is_array || expression.types.len() > 1);
-
                             TypeInterface::format_string_expression(
-                                expression,
                                 exp_string,
-                                need_parentheses,
+                                expression_need_array,
                             )
                         })
                         .collect::<Vec<String>>()
@@ -169,13 +229,18 @@ impl TypeInterface {
                 }
 
                 format!(
-                    "{{\n{}\n{}}}",
+                    "{{\n{}\n{}}}{}",
                     object_string.join("\n"),
                     "  ".repeat(depth - 1),
+                    if type_object.is_array && !expression_is_array {
+                        "[]"
+                    } else {
+                        ""
+                    }
                 )
             }
             ObjectOrPrimitiveOrRef::PrimitiveProperty(primitive) => {
-                TypeInterface::primitive_to_string(primitive)
+                TypeInterface::primitive_to_string(primitive, expression_is_array)
             }
             ObjectOrPrimitiveOrRef::RefProperty(reference) => {
                 TypeInterface::reference_to_string(reference)
@@ -192,17 +257,15 @@ impl TypeInterface {
             .expressions
             .iter()
             .map(|expression| {
+                let expression_is_array = TypeInterface::expression_is_array(expression);
                 let exp_string = expression
                     .types
                     .iter()
-                    .map(|t| TypeInterface::type_object_to_string(t, 1))
+                    .map(|t| TypeInterface::type_object_to_string(t, 1, expression_is_array))
                     .collect::<Vec<String>>()
                     .join(TypeInterface::get_separator(&expression.link));
 
-                let need_parentheses = expression.link.is_some()
-                    && (expression.is_array || self.expressions.len() > 1);
-
-                TypeInterface::format_string_expression(expression, exp_string, need_parentheses)
+                TypeInterface::format_string_expression(exp_string, expression_is_array)
             })
             .collect::<Vec<String>>();
 
@@ -238,9 +301,9 @@ fn get_number_expression(is_array: bool) -> Expression {
             PrimitiveProperty {
                 primitive_type: PrimitiveType::Number,
                 enumeration: vec![],
+                is_array: is_array,
             },
         )],
-        is_array: is_array,
         link: None,
     }
 }
@@ -285,9 +348,9 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
                             PrimitiveProperty {
                                 primitive_type: PrimitiveType::String,
                                 enumeration: enumeration,
+                                is_array: is_array,
                             },
                         )],
-                        is_array: is_array,
                         link: None,
                     });
                 }
@@ -303,9 +366,9 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
                             PrimitiveProperty {
                                 primitive_type: PrimitiveType::Boolean,
                                 enumeration: vec![],
+                                is_array: is_array,
                             },
                         )],
-                        is_array: is_array,
                         link: None,
                     });
                 }
@@ -319,9 +382,9 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
                                 PrimitiveProperty {
                                     primitive_type: PrimitiveType::Any,
                                     enumeration: vec![],
+                                    is_array: true,
                                 },
                             )],
-                            is_array: true,
                             link: None,
                         }],
                     };
@@ -342,29 +405,26 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
                     expressions.push(Expression {
                         types: vec![ObjectOrPrimitiveOrRef::TypeObject(TypeObject {
                             properties,
+                            is_array: is_array,
                         })],
-                        is_array: is_array,
                         link: None,
                     });
                 }
                 SchemaKind::AnyOf { any_of } => {
                     expressions.push(Expression {
                         types: schema_to_typescript_any_one_all_of_types(any_of, is_array, None),
-                        is_array: is_array,
                         link: Some(UnionOrIntersection::Union),
                     });
                 }
                 SchemaKind::OneOf { one_of } => {
                     expressions.push(Expression {
                         types: schema_to_typescript_any_one_all_of_types(one_of, is_array, None),
-                        is_array: is_array,
                         link: Some(UnionOrIntersection::Union),
                     });
                 }
                 SchemaKind::AllOf { all_of } => {
                     expressions.push(Expression {
                         types: schema_to_typescript_any_one_all_of_types(all_of, is_array, None),
-                        is_array: is_array,
                         link: Some(UnionOrIntersection::Intersection),
                     });
                 }
@@ -379,9 +439,9 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
                         PrimitiveProperty {
                             primitive_type: PrimitiveType::Null,
                             enumeration: vec![],
+                            is_array: false,
                         },
                     )],
-                    is_array: is_array,
                     link: None,
                 });
             }
@@ -393,8 +453,8 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
             return vec![Expression {
                 types: vec![ObjectOrPrimitiveOrRef::RefProperty(RefProperty {
                     reference: reference_name,
+                    is_array: is_array,
                 })],
-                is_array: is_array,
                 link: separator,
             }];
         }
@@ -830,6 +890,132 @@ mod tests {
   name: string;
   value: number;
 })[];"##;
+
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_object_with_anyof_array_primitive_object() {
+        let schema_json = r##"
+        {
+            "type": "object", 
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "value": {
+                    "anyOf": [
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "number"
+                            }
+                        },
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": { "type": "string" },
+                                    "count": { "type": "number" }
+                                },
+                                "required": ["name", "count"]
+                            }
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/components/schemas/SomeType"
+                            }
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "key",
+                "value"
+            ]
+        }
+        "##;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface = schema_to_typescript("MixedValue", &ReferenceOr::Item(schema));
+
+        let expected = r##"type MixedValue = {
+  key: string;
+  value: number[] | string | {
+    name: string;
+    count: number;
+  }[] | SomeType[];
+};"##;
+
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_object_with_oneof_array_primitive_object() {
+        let schema_json = r##"
+        {
+            "type": "object", 
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "value": {
+                    "oneOf": [
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "number"
+                            }
+                        },
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": { "type": "string" },
+                                    "count": { "type": "number" }
+                                },
+                                "required": ["name", "count"]
+                            }
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/components/schemas/SomeType"
+                            }
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "key",
+                "value"
+            ]
+        }
+        "##;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface = schema_to_typescript("MixedValue", &ReferenceOr::Item(schema));
+
+        let expected = r##"type MixedValue = {
+  key: string;
+  value: number[] | string | {
+    name: string;
+    count: number;
+  }[] | SomeType[];
+};"##;
 
         assert_eq!(type_interface.to_string(), expected.to_string());
     }
