@@ -262,7 +262,7 @@ impl TypeInterface {
             .collect::<Vec<String>>();
 
         format!(
-            "type {} = {};",
+            "export type {} = {};",
             self.name,
             types.join(TypeInterface::get_separator(&Some(
                 UnionOrIntersection::Union
@@ -540,7 +540,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("EmptyObject".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type EmptyObject = {
+        let expected = r##"export type EmptyObject = {
   metadata?: {};
 };"##;
         assert_eq!(type_interface.to_string(), expected.to_string());
@@ -567,7 +567,7 @@ mod tests {
 
         let type_interface = schema_to_typescript("Book".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type Book = {
+        let expected = r##"export type Book = {
   id?: string;
   title?: string;
   author?: string;
@@ -597,7 +597,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("BookMetadata".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type BookMetadata = {
+        let expected = r##"export type BookMetadata = {
   id?: string;
   genres?: string[];
   tags?: string[];
@@ -626,7 +626,7 @@ mod tests {
 
         let type_interface = schema_to_typescript("NewBook".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type NewBook = {
+        let expected = r##"export type NewBook = {
   title: string;
   author: string;
   genres?: string[];
@@ -673,7 +673,7 @@ mod tests {
 
         let type_interface = schema_to_typescript("Review".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type Review = {
+        let expected = r##"export type Review = {
   reviewer?: string;
   comment?: string | null;
   rating?: number | null;
@@ -745,7 +745,7 @@ mod tests {
 
         let type_interface = schema_to_typescript("Post".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type Post = {
+        let expected = r##"export type Post = {
   id: string;
   status: "draft" | "published" | "archived";
   visibility?: "public" | "private" | null;
@@ -821,7 +821,7 @@ mod tests {
 
         let type_interface = schema_to_typescript("Task".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type Task = {
+        let expected = r##"export type Task = {
   id: string;
   priority: 1.5 | 2.5 | 3.5;
   score?: 0.5 | 1 | null;
@@ -897,7 +897,7 @@ mod tests {
 
         let type_interface = schema_to_typescript("Grade".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type Grade = {
+        let expected = r##"export type Grade = {
   id: string;
   level: 1 | 2 | 3;
   grade?: 0 | 1 | null;
@@ -953,7 +953,7 @@ mod tests {
 
         let type_interface = schema_to_typescript("Config".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type Config = {
+        let expected = r##"export type Config = {
   id: string;
   isActive: true;
   isPublic?: false | null;
@@ -1032,7 +1032,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("MixedEnum".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type MixedEnum = {
+        let expected = r##"export type MixedEnum = {
   id: string;
   value: "low" | "medium" | "high" | 0 | 1 | 2 | 0.5 | 1.5 | 2.5 | ("A" | "B" | "C")[] | true | false;
   mixedArray: ("red" | "green" | "blue" | 1 | 2 | 3 | true | "small" | "medium" | "large")[];
@@ -1068,7 +1068,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("InvalidObject".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type InvalidObject = {
+        let expected = r##"export type InvalidObject = {
   invalid_property?: any;
 };"##;
 
@@ -1143,7 +1143,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("MixedEnum".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type MixedEnum = {
+        let expected = r##"export type MixedEnum = {
   id: string;
   value: "low" | "medium" | "high" | 0 | 1 | 2 | 0.5 | 1.5 | 2.5 | ("A" | "B" | "C")[] | true | false;
   mixedArray: ("red" | "green" | "blue" | 1 | 2 | 3 | true | "small" | "medium" | "large")[];
@@ -1201,7 +1201,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("MixedEnumAllOf".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type MixedEnumAllOf = {
+        let expected = r##"export type MixedEnumAllOf = {
   id: string;
   value: {
     status?: "active" | "inactive";
@@ -1239,7 +1239,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("SearchCriteria".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type SearchCriteria = Book | {
+        let expected = r##"export type SearchCriteria = Book | {
   query?: string;
   genres?: string[];
   rating?: number;
@@ -1272,7 +1272,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("BookWithMetadata".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type BookWithMetadata = Book & {
+        let expected = r##"export type BookWithMetadata = Book & {
   query?: string;
   genres?: string[];
   rating?: number;
@@ -1315,7 +1315,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("UserInfo".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type UserInfo = {
+        let expected = r##"export type UserInfo = {
   name: string;
   age?: number;
 } | {
@@ -1354,7 +1354,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("MixedArray".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type MixedArray = (string | number | {
+        let expected = r##"export type MixedArray = (string | number | {
   name: string;
   value: number;
 })[];"##;
@@ -1399,7 +1399,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("CombinedArray".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type CombinedArray = ({
+        let expected = r##"export type CombinedArray = ({
   id: string;
   name?: string;
 } & {
@@ -1440,7 +1440,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("MixedAnyArray".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type MixedAnyArray = (string | number | {
+        let expected = r##"export type MixedAnyArray = (string | number | {
   name: string;
   value: number;
 })[];"##;
@@ -1501,7 +1501,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("MixedValue".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type MixedValue = {
+        let expected = r##"export type MixedValue = {
   key: string;
   value: number[] | string | {
     name: string;
@@ -1565,7 +1565,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("MixedValue".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type MixedValue = {
+        let expected = r##"export type MixedValue = {
   key: string;
   value: number[] | string | {
     name: string;
@@ -1612,7 +1612,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("Location".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type Location = {
+        let expected = r##"export type Location = {
   id: string;
   name: string;
   address: {
@@ -1660,7 +1660,7 @@ mod tests {
 
         let type_interface = schema_to_typescript("Product".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type Product = {
+        let expected = r##"export type Product = {
   id: string;
   categories?: {
     name: string;
@@ -1739,7 +1739,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("Organization".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type Organization = {
+        let expected = r##"export type Organization = {
   id: string;
   departments: {
     name: string;
@@ -1811,7 +1811,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("DeepArray".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type DeepArray = {
+        let expected = r##"export type DeepArray = {
   id: string;
   metadata: {
     title: string;
@@ -1881,7 +1881,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("DeepArrayAllOf".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type DeepArrayAllOf = {
+        let expected = r##"export type DeepArrayAllOf = {
   id: string;
   metadata: {
     title: string;
@@ -1949,7 +1949,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("DeepArrayAny".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type DeepArrayAny = {
+        let expected = r##"export type DeepArrayAny = {
   id: string;
   metadata: {
     title: string;
@@ -1996,7 +1996,7 @@ mod tests {
         let type_interface =
             schema_to_typescript("DeepRefArray".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"type DeepRefArray = {
+        let expected = r##"export type DeepRefArray = {
   id: string;
   data: {
     name: string;
