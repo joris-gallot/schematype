@@ -211,7 +211,7 @@ jobs:
             architecture: x86
           - host: windows-latest
             target: aarch64-pc-windows-msvc
-            architecture: arm64
+            architecture: x64
           - host: macos-latest
             target: aarch64-apple-darwin
             architecture: arm64
@@ -219,7 +219,6 @@ jobs:
             target: x86_64-apple-darwin
             architecture: x64
         node:
-          - 18
           - 20
     name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
     runs-on: ${{ matrix.settings.host }}
