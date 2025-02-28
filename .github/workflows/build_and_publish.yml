@@ -470,6 +470,12 @@ jobs:
           path: artifacts
       - name: Move artifacts
         run: pnpm artifacts
+      - name: List files
+        run: ls -la
+        shell: bash
+      - name: List files in npm
+        run: ls -la ./npm/darwin-arm64
+        shell: bash
       - name: List packages
         run: ls -R ./npm
         shell: bash
