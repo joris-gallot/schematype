@@ -11,9 +11,9 @@
   "cpu": [
     "arm"
   ],
-  "main": "core.linux-arm-musleabihf.node",
+  "main": "schematype.linux-arm-musleabihf.node",
   "files": [
-    "core.linux-arm-musleabihf.node"
+    "schematype.linux-arm-musleabihf.node"
   ],
   "license": "MIT",
   "engines": {

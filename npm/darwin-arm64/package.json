@@ -11,9 +11,9 @@
   "cpu": [
     "arm64"
   ],
-  "main": "core.darwin-arm64.node",
+  "main": "schematype.darwin-arm64.node",
   "files": [
-    "core.darwin-arm64.node"
+    "schematype.darwin-arm64.node"
   ],
   "license": "MIT",
   "engines": {

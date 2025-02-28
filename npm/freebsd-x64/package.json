@@ -11,9 +11,9 @@
   "cpu": [
     "x64"
   ],
-  "main": "core.freebsd-x64.node",
+  "main": "schematype.freebsd-x64.node",
   "files": [
-    "core.freebsd-x64.node"
+    "schematype.freebsd-x64.node"
   ],
   "license": "MIT",
   "engines": {

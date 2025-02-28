@@ -11,9 +11,9 @@
   "cpu": [
     "arm64"
   ],
-  "main": "core.linux-arm64-musl.node",
+  "main": "schematype.linux-arm64-musl.node",
   "files": [
-    "core.linux-arm64-musl.node"
+    "schematype.linux-arm64-musl.node"
   ],
   "license": "MIT",
   "engines": {

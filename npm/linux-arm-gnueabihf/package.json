@@ -11,9 +11,9 @@
   "cpu": [
     "arm"
   ],
-  "main": "core.linux-arm-gnueabihf.node",
+  "main": "schematype.linux-arm-gnueabihf.node",
   "files": [
-    "core.linux-arm-gnueabihf.node"
+    "schematype.linux-arm-gnueabihf.node"
   ],
   "license": "MIT",
   "engines": {

@@ -11,9 +11,9 @@
   "cpu": [
     "x64"
   ],
-  "main": "core.linux-x64-gnu.node",
+  "main": "schematype.linux-x64-gnu.node",
   "files": [
-    "core.linux-x64-gnu.node"
+    "schematype.linux-x64-gnu.node"
   ],
   "license": "MIT",
   "engines": {

@@ -8,9 +8,9 @@
   "os": [
     "darwin"
   ],
-  "main": "core.darwin-universal.node",
+  "main": "schematype.darwin-universal.node",
   "files": [
-    "core.darwin-universal.node"
+    "schematype.darwin-universal.node"
   ],
   "license": "MIT",
   "engines": {

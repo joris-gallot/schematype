@@ -11,9 +11,9 @@
   "cpu": [
     "x64"
   ],
-  "main": "core.darwin-x64.node",
+  "main": "schematype.darwin-x64.node",
   "files": [
-    "core.darwin-x64.node"
+    "schematype.darwin-x64.node"
   ],
   "license": "MIT",
   "engines": {
