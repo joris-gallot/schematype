@@ -1,3 +1,3 @@
-# `@typeme/core-darwin-universal`
+# `@schematype/darwin-universal`
 
-This is the **universal-apple-darwin** binary for `@typeme/core`
+This is the **universal-apple-darwin** binary for `@schematype/core`

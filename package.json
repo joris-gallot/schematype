@@ -1,5 +1,5 @@
 {
-  "name": "@typeme/core",
+  "name": "@schematype/core",
   "version": "0.0.1",
   "packageManager": "pnpm@9.15.5",
   "description": "",
@@ -16,7 +16,7 @@
     "node": ">=20.0.0"
   },
   "napi": {
-    "name": "typeme",
+    "name": "schematype",
     "triples": {
       "additional": [
         "aarch64-apple-darwin",

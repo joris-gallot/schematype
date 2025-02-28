@@ -1,5 +1,5 @@
 {
-  "name": "@typeme/core-linux-riscv64-gnu",
+  "name": "@schematype/linux-riscv64-gnu",
   "version": "0.0.0",
   "os": [
     "linux"

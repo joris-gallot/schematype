@@ -1,5 +1,5 @@
 {
-  "name": "@typeme/core-darwin-universal",
+  "name": "@schematype/darwin-universal",
   "version": "0.0.0",
   "os": [
     "darwin"

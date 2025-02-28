@@ -1,5 +1,5 @@
 {
-  "name": "@typeme/core-linux-arm-gnueabihf",
+  "name": "@schematype/linux-arm-gnueabihf",
   "version": "0.0.0",
   "os": [
     "linux"

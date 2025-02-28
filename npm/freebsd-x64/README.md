@@ -1,3 +1,3 @@
-# `@typeme/core-freebsd-x64`
+# `@schematype/freebsd-x64`
 
-This is the **x86_64-unknown-freebsd** binary for `@typeme/core`
+This is the **x86_64-unknown-freebsd** binary for `@schematype/core`

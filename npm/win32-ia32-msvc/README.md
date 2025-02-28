@@ -1,3 +1,3 @@
-# `@typeme/core-win32-ia32-msvc`
+# `@schematype/win32-ia32-msvc`
 
-This is the **i686-pc-windows-msvc** binary for `@typeme/core`
+This is the **i686-pc-windows-msvc** binary for `@schematype/core`
