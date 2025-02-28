@@ -1,6 +1,6 @@
 {
   "name": "@schematype/core",
-  "version": "0.0.1",
+  "version": "0.0.0",
   "packageManager": "pnpm@9.15.5",
   "description": "Convert JSON Schema to TypeScript type declarations at Rust speed",
   "author": "Joris Gallot",
@@ -14,7 +14,8 @@
     "types"
   ],
   "repository": {
-    "url": "https://github.com/joris-gallot/schematype"
+    "type": "git",
+    "url": "git+https://github.com/joris-gallot/schematype.git"
   },
   "main": "index.js",
   "types": "index.d.ts",

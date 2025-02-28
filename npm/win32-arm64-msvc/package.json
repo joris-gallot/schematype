@@ -1,8 +1,9 @@
 {
-  "name": "@schematype/core-win32-arm64-msvc",
+  "name": "@schematype/win32-arm64-msvc",
   "version": "0.0.0",
   "repository": {
-    "url": "https://github.com/joris-gallot/schematype"
+    "type": "git",
+    "url": "git+https://github.com/joris-gallot/schematype.git"
   },
   "os": [
     "win32"
