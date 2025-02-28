@@ -1,6 +1,9 @@
 {
   "name": "@schematype/linux-x64-gnu",
   "version": "0.0.0",
+  "repository": {
+    "url": "https://github.com/joris-gallot/schematype"
+  },
   "os": [
     "linux"
   ],

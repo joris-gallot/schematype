@@ -1,6 +1,9 @@
 {
   "name": "@schematype/darwin-x64",
   "version": "0.0.0",
+  "repository": {
+    "url": "https://github.com/joris-gallot/schematype"
+  },
   "os": [
     "darwin"
   ],

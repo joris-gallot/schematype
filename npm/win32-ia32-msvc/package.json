@@ -1,6 +1,9 @@
 {
   "name": "@schematype/win32-ia32-msvc",
   "version": "0.0.0",
+  "repository": {
+    "url": "https://github.com/joris-gallot/schematype"
+  },
   "os": [
     "win32"
   ],
