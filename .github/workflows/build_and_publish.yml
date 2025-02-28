@@ -86,10 +86,9 @@ jobs:
               set -e &&
               rustup target add aarch64-unknown-linux-musl &&
               pnpm build --target aarch64-unknown-linux-musl
-          # TODO: Enable aarch64-pc-windows-msvc
-          # - host: windows-latest
-          #   target: aarch64-pc-windows-msvc
-          #   build: pnpm build --target aarch64-pc-windows-msvc
+          - host: windows-latest
+            target: aarch64-pc-windows-msvc
+            build: pnpm build --target aarch64-pc-windows-msvc
     name: stable - ${{ matrix.settings.target }} - node@20
     runs-on: ${{ matrix.settings.host }}
     steps:
@@ -210,10 +209,9 @@ jobs:
           - host: windows-latest
             target: i686-pc-windows-msvc
             architecture: x86
-          # TODO: Enable aarch64-pc-windows-msvc
-          # - host: windows-latest
-          #   target: aarch64-pc-windows-msvc
-          #   architecture: arm64
+          - host: windows-latest
+            target: aarch64-pc-windows-msvc
+            architecture: arm64
           - host: macos-latest
             target: aarch64-apple-darwin
             architecture: arm64
@@ -221,7 +219,7 @@ jobs:
             target: x86_64-apple-darwin
             architecture: x64
         node:
-          - 20
+          - 22
     name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
     runs-on: ${{ matrix.settings.host }}
     steps:
