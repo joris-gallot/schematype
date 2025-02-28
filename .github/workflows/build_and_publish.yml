@@ -46,17 +46,13 @@ jobs:
             target: x86_64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
             build: |-
-              node -v &&
               npm install -g pnpm@9.15.5 --force --ignore-scripts &&
-              pnpm -v &&
               pnpm build --target x86_64-unknown-linux-gnu
           - host: ubuntu-latest
             target: x86_64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: |-
-              node -v &&
               npm install -g pnpm@9.15.5 --force --ignore-scripts &&
-              pnpm -v &&
               pnpm build --target x86_64-unknown-linux-musl
           - host: macos-latest
             target: aarch64-apple-darwin
@@ -65,9 +61,7 @@ jobs:
             target: aarch64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
             build: |-
-              node -v &&
               npm install -g pnpm@9.15.5 --force --ignore-scripts &&
-              pnpm -v &&
               pnpm build --target aarch64-unknown-linux-gnu
           - host: ubuntu-latest
             target: armv7-unknown-linux-gnueabihf
@@ -80,9 +74,7 @@ jobs:
             target: aarch64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine-zig
             build: |-
-              node -v &&
               npm install -g pnpm@9.15.5 --force --ignore-scripts &&
-              pnpm -v &&
               set -e &&
               rustup target add aarch64-unknown-linux-musl &&
               pnpm build --target aarch64-unknown-linux-musl
@@ -470,12 +462,6 @@ jobs:
           path: artifacts
       - name: Move artifacts
         run: pnpm artifacts
-      - name: List files
-        run: ls -la
-        shell: bash
-      - name: List files in npm
-        run: ls -la ./npm/darwin-arm64
-        shell: bash
       - name: List packages
         run: ls -R ./npm
         shell: bash
