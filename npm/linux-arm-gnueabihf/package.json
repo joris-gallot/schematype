@@ -1,5 +1,5 @@
 {
-  "name": "@schematype/linux-arm-gnueabihf",
+  "name": "@schematype/core-linux-arm-gnueabihf",
   "version": "0.0.0",
   "repository": {
     "type": "git",

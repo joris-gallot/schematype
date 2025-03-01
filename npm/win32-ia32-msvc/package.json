@@ -1,5 +1,5 @@
 {
-  "name": "@schematype/win32-ia32-msvc",
+  "name": "@schematype/core-win32-ia32-msvc",
   "version": "0.0.0",
   "repository": {
     "type": "git",

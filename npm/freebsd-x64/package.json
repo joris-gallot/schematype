@@ -1,5 +1,5 @@
 {
-  "name": "@schematype/freebsd-x64",
+  "name": "@schematype/core-freebsd-x64",
   "version": "0.0.0",
   "repository": {
     "type": "git",
