@@ -32,24 +32,24 @@ switch (platform) {
   case 'android':
     switch (arch) {
       case 'arm64':
-        localFileExisted = existsSync(join(__dirname, 'typeme.android-arm64.node'))
+        localFileExisted = existsSync(join(__dirname, 'schematype.android-arm64.node'))
         try {
           if (localFileExisted) {
-            nativeBinding = require('./typeme.android-arm64.node')
+            nativeBinding = require('./schematype.android-arm64.node')
           } else {
-            nativeBinding = require('@typeme/core-android-arm64')
+            nativeBinding = require('@schematype/core-android-arm64')
           }
         } catch (e) {
           loadError = e
         }
         break
       case 'arm':
-        localFileExisted = existsSync(join(__dirname, 'typeme.android-arm-eabi.node'))
+        localFileExisted = existsSync(join(__dirname, 'schematype.android-arm-eabi.node'))
         try {
           if (localFileExisted) {
-            nativeBinding = require('./typeme.android-arm-eabi.node')
+            nativeBinding = require('./schematype.android-arm-eabi.node')
           } else {
-            nativeBinding = require('@typeme/core-android-arm-eabi')
+            nativeBinding = require('@schematype/core-android-arm-eabi')
           }
         } catch (e) {
           loadError = e
@@ -63,13 +63,13 @@ switch (platform) {
     switch (arch) {
       case 'x64':
         localFileExisted = existsSync(
-          join(__dirname, 'typeme.win32-x64-msvc.node')
+          join(__dirname, 'schematype.win32-x64-msvc.node')
         )
         try {
           if (localFileExisted) {
-            nativeBinding = require('./typeme.win32-x64-msvc.node')
+            nativeBinding = require('./schematype.win32-x64-msvc.node')
           } else {
-            nativeBinding = require('@typeme/core-win32-x64-msvc')
+            nativeBinding = require('@schematype/core-win32-x64-msvc')
           }
         } catch (e) {
           loadError = e
@@ -77,13 +77,13 @@ switch (platform) {
         break
       case 'ia32':
         localFileExisted = existsSync(
-          join(__dirname, 'typeme.win32-ia32-msvc.node')
+          join(__dirname, 'schematype.win32-ia32-msvc.node')
         )
         try {
           if (localFileExisted) {
-            nativeBinding = require('./typeme.win32-ia32-msvc.node')
+            nativeBinding = require('./schematype.win32-ia32-msvc.node')
           } else {
-            nativeBinding = require('@typeme/core-win32-ia32-msvc')
+            nativeBinding = require('@schematype/core-win32-ia32-msvc')
           }
         } catch (e) {
           loadError = e
@@ -91,13 +91,13 @@ switch (platform) {
         break
       case 'arm64':
         localFileExisted = existsSync(
-          join(__dirname, 'typeme.win32-arm64-msvc.node')
+          join(__dirname, 'schematype.win32-arm64-msvc.node')
         )
         try {
           if (localFileExisted) {
-            nativeBinding = require('./typeme.win32-arm64-msvc.node')
+            nativeBinding = require('./schematype.win32-arm64-msvc.node')
           } else {
-            nativeBinding = require('@typeme/core-win32-arm64-msvc')
+            nativeBinding = require('@schematype/core-win32-arm64-msvc')
           }
         } catch (e) {
           loadError = e
@@ -108,23 +108,23 @@ switch (platform) {
     }
     break
   case 'darwin':
-    localFileExisted = existsSync(join(__dirname, 'typeme.darwin-universal.node'))
+    localFileExisted = existsSync(join(__dirname, 'schematype.darwin-universal.node'))
     try {
       if (localFileExisted) {
-        nativeBinding = require('./typeme.darwin-universal.node')
+        nativeBinding = require('./schematype.darwin-universal.node')
       } else {
-        nativeBinding = require('@typeme/core-darwin-universal')
+        nativeBinding = require('@schematype/core-darwin-universal')
       }
       break
     } catch {}
     switch (arch) {
       case 'x64':
-        localFileExisted = existsSync(join(__dirname, 'typeme.darwin-x64.node'))
+        localFileExisted = existsSync(join(__dirname, 'schematype.darwin-x64.node'))
         try {
           if (localFileExisted) {
-            nativeBinding = require('./typeme.darwin-x64.node')
+            nativeBinding = require('./schematype.darwin-x64.node')
           } else {
-            nativeBinding = require('@typeme/core-darwin-x64')
+            nativeBinding = require('@schematype/core-darwin-x64')
           }
         } catch (e) {
           loadError = e
@@ -132,13 +132,13 @@ switch (platform) {
         break
       case 'arm64':
         localFileExisted = existsSync(
-          join(__dirname, 'typeme.darwin-arm64.node')
+          join(__dirname, 'schematype.darwin-arm64.node')
         )
         try {
           if (localFileExisted) {
-            nativeBinding = require('./typeme.darwin-arm64.node')
+            nativeBinding = require('./schematype.darwin-arm64.node')
           } else {
-            nativeBinding = require('@typeme/core-darwin-arm64')
+            nativeBinding = require('@schematype/core-darwin-arm64')
           }
         } catch (e) {
           loadError = e
@@ -152,12 +152,12 @@ switch (platform) {
     if (arch !== 'x64') {
       throw new Error(`Unsupported architecture on FreeBSD: ${arch}`)
     }
-    localFileExisted = existsSync(join(__dirname, 'typeme.freebsd-x64.node'))
+    localFileExisted = existsSync(join(__dirname, 'schematype.freebsd-x64.node'))
     try {
       if (localFileExisted) {
-        nativeBinding = require('./typeme.freebsd-x64.node')
+        nativeBinding = require('./schematype.freebsd-x64.node')
       } else {
-        nativeBinding = require('@typeme/core-freebsd-x64')
+        nativeBinding = require('@schematype/core-freebsd-x64')
       }
     } catch (e) {
       loadError = e
@@ -168,26 +168,26 @@ switch (platform) {
       case 'x64':
         if (isMusl()) {
           localFileExisted = existsSync(
-            join(__dirname, 'typeme.linux-x64-musl.node')
+            join(__dirname, 'schematype.linux-x64-musl.node')
           )
           try {
             if (localFileExisted) {
-              nativeBinding = require('./typeme.linux-x64-musl.node')
+              nativeBinding = require('./schematype.linux-x64-musl.node')
             } else {
-              nativeBinding = require('@typeme/core-linux-x64-musl')
+              nativeBinding = require('@schematype/core-linux-x64-musl')
             }
           } catch (e) {
             loadError = e
           }
         } else {
           localFileExisted = existsSync(
-            join(__dirname, 'typeme.linux-x64-gnu.node')
+            join(__dirname, 'schematype.linux-x64-gnu.node')
           )
           try {
             if (localFileExisted) {
-              nativeBinding = require('./typeme.linux-x64-gnu.node')
+              nativeBinding = require('./schematype.linux-x64-gnu.node')
             } else {
-              nativeBinding = require('@typeme/core-linux-x64-gnu')
+              nativeBinding = require('@schematype/core-linux-x64-gnu')
             }
           } catch (e) {
             loadError = e
@@ -197,26 +197,26 @@ switch (platform) {
       case 'arm64':
         if (isMusl()) {
           localFileExisted = existsSync(
-            join(__dirname, 'typeme.linux-arm64-musl.node')
+            join(__dirname, 'schematype.linux-arm64-musl.node')
           )
           try {
             if (localFileExisted) {
-              nativeBinding = require('./typeme.linux-arm64-musl.node')
+              nativeBinding = require('./schematype.linux-arm64-musl.node')
             } else {
-              nativeBinding = require('@typeme/core-linux-arm64-musl')
+              nativeBinding = require('@schematype/core-linux-arm64-musl')
             }
           } catch (e) {
             loadError = e
           }
         } else {
           localFileExisted = existsSync(
-            join(__dirname, 'typeme.linux-arm64-gnu.node')
+            join(__dirname, 'schematype.linux-arm64-gnu.node')
           )
           try {
             if (localFileExisted) {
-              nativeBinding = require('./typeme.linux-arm64-gnu.node')
+              nativeBinding = require('./schematype.linux-arm64-gnu.node')
             } else {
-              nativeBinding = require('@typeme/core-linux-arm64-gnu')
+              nativeBinding = require('@schematype/core-linux-arm64-gnu')
             }
           } catch (e) {
             loadError = e
@@ -226,26 +226,26 @@ switch (platform) {
       case 'arm':
         if (isMusl()) {
           localFileExisted = existsSync(
-            join(__dirname, 'typeme.linux-arm-musleabihf.node')
+            join(__dirname, 'schematype.linux-arm-musleabihf.node')
           )
           try {
             if (localFileExisted) {
-              nativeBinding = require('./typeme.linux-arm-musleabihf.node')
+              nativeBinding = require('./schematype.linux-arm-musleabihf.node')
             } else {
-              nativeBinding = require('@typeme/core-linux-arm-musleabihf')
+              nativeBinding = require('@schematype/core-linux-arm-musleabihf')
             }
           } catch (e) {
             loadError = e
           }
         } else {
           localFileExisted = existsSync(
-            join(__dirname, 'typeme.linux-arm-gnueabihf.node')
+            join(__dirname, 'schematype.linux-arm-gnueabihf.node')
           )
           try {
             if (localFileExisted) {
-              nativeBinding = require('./typeme.linux-arm-gnueabihf.node')
+              nativeBinding = require('./schematype.linux-arm-gnueabihf.node')
             } else {
-              nativeBinding = require('@typeme/core-linux-arm-gnueabihf')
+              nativeBinding = require('@schematype/core-linux-arm-gnueabihf')
             }
           } catch (e) {
             loadError = e
@@ -255,26 +255,26 @@ switch (platform) {
       case 'riscv64':
         if (isMusl()) {
           localFileExisted = existsSync(
-            join(__dirname, 'typeme.linux-riscv64-musl.node')
+            join(__dirname, 'schematype.linux-riscv64-musl.node')
           )
           try {
             if (localFileExisted) {
-              nativeBinding = require('./typeme.linux-riscv64-musl.node')
+              nativeBinding = require('./schematype.linux-riscv64-musl.node')
             } else {
-              nativeBinding = require('@typeme/core-linux-riscv64-musl')
+              nativeBinding = require('@schematype/core-linux-riscv64-musl')
             }
           } catch (e) {
             loadError = e
           }
         } else {
           localFileExisted = existsSync(
-            join(__dirname, 'typeme.linux-riscv64-gnu.node')
+            join(__dirname, 'schematype.linux-riscv64-gnu.node')
           )
           try {
             if (localFileExisted) {
-              nativeBinding = require('./typeme.linux-riscv64-gnu.node')
+              nativeBinding = require('./schematype.linux-riscv64-gnu.node')
             } else {
-              nativeBinding = require('@typeme/core-linux-riscv64-gnu')
+              nativeBinding = require('@schematype/core-linux-riscv64-gnu')
             }
           } catch (e) {
             loadError = e
@@ -283,13 +283,13 @@ switch (platform) {
         break
       case 's390x':
         localFileExisted = existsSync(
-          join(__dirname, 'typeme.linux-s390x-gnu.node')
+          join(__dirname, 'schematype.linux-s390x-gnu.node')
         )
         try {
           if (localFileExisted) {
-            nativeBinding = require('./typeme.linux-s390x-gnu.node')
+            nativeBinding = require('./schematype.linux-s390x-gnu.node')
           } else {
-            nativeBinding = require('@typeme/core-linux-s390x-gnu')
+            nativeBinding = require('@schematype/core-linux-s390x-gnu')
           }
         } catch (e) {
           loadError = e
