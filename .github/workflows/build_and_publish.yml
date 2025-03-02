@@ -28,6 +28,7 @@ concurrency:
 
 jobs:
   clippy:
+    name: Clippy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -35,6 +36,7 @@ jobs:
         run: cargo clippy --verbose -- -D warnings
 
   audit:
+    name: Audit
     if: ${{ github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     steps:
@@ -45,6 +47,7 @@ jobs:
         run: cargo audit
 
   test:
+    name: Cargo Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
