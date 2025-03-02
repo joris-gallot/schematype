@@ -56,6 +56,7 @@ struct ObjectProperty {
   expressions: Vec<Expression>,
   required: bool,
   description: Option<String>,
+  deprecated: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -206,7 +207,18 @@ impl TypeInterface {
 
             let whitespace = "  ".repeat(depth);
             let comment = if let Some(description) = &property.description {
-              format!("{}/** {} */\n", whitespace, description)
+              format!(
+                "{}/**\n{} * {}{}\n{} */\n",
+                whitespace,
+                whitespace,
+                if property.deprecated {
+                  "@deprecated "
+                } else {
+                  ""
+                },
+                description,
+                whitespace
+              )
             } else {
               "".to_string()
             };
@@ -434,14 +446,24 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
           let properties: Vec<ObjectProperty> = object
             .properties
             .iter()
-            .map(|(key, value)| ObjectProperty {
-              name: key.to_string(),
-              expressions: schema_to_typescript_expressions(value, false, None),
-              required: object.required.contains(key),
-              description: match value {
+            .map(|(key, value)| {
+              let description = match value {
                 ReferenceOr::Item(schema) => schema.as_schema().schema_data.description.clone(),
                 ReferenceOr::Reference { .. } => None,
-              },
+              };
+
+              let deprecated = match value {
+                ReferenceOr::Item(schema) => schema.as_schema().schema_data.deprecated,
+                ReferenceOr::Reference { .. } => false,
+              };
+
+              ObjectProperty {
+                name: key.to_string(),
+                expressions: schema_to_typescript_expressions(value, false, None),
+                required: object.required.contains(key),
+                description,
+                deprecated,
+              }
             })
             .collect();
 
@@ -646,25 +668,21 @@ mod tests {
             "type": "object",
             "properties": {
                 "reviewer": {
-                    "type": "string",
-                    "description": "Name of the reviewer"
+                    "type": "string"
                 },
                 "comment": {
                     "type": "string",
-                    "nullable": true,
-                    "description": "Review comment"
+                    "nullable": true
                 },
                 "rating": {
                     "type": "number",
                     "format": "float",
-                    "nullable": true,
-                    "description": "Rating given by the reviewer"
+                    "nullable": true
                 },
                 "date": {
                     "type": "string",
                     "format": "date-time",
-                    "nullable": true,
-                    "description": "Date of the review"
+                    "nullable": true
                 }
             }
         }
@@ -2056,26 +2074,174 @@ mod tests {
 
     let type_interface =
       schema_to_typescript("ComplexObject".to_string(), ReferenceOr::Item(schema));
-
     let expected = r##"export type ComplexObject = {
-  /** Unique identifier */
+  /**
+   * Unique identifier
+   */
   id: string;
-  /** List of important numbers */
+  /**
+   * List of important numbers
+   */
   numbers?: number[];
-  /** Configuration flags */
+  /**
+   * Configuration flags
+   */
   flags: {
-    /** Whether feature is enabled */
+    /**
+     * Whether feature is enabled
+     */
     isEnabled: boolean;
-    /** Priority level 1-5 */
+    /**
+     * Priority level 1-5
+     */
     priority?: number;
   };
-  /** List of metadata objects */
+  /**
+   * List of metadata objects
+   */
   metadata: {
-    /** Metadata key */
+    /**
+     * Metadata key
+     */
     key: string;
-    /** Metadata value */
+    /**
+     * Metadata value
+     */
     value: string;
   }[];
+};"##;
+
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
+
+  #[test]
+  fn test_object_with_deprecated_properties() {
+    let schema_json = r##"
+        {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "description": "Unique identifier"
+                },
+                "oldName": {
+                    "type": "string",
+                    "description": "Use name instead",
+                    "deprecated": true
+                },
+                "name": {
+                    "type": "string",
+                    "description": "The current name field"
+                },
+                "oldTags": {
+                    "type": "array",
+                    "description": "Use categories instead",
+                    "deprecated": true,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "categories": {
+                    "type": "array",
+                    "description": "Current categories field",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "config": {
+                    "type": "object",
+                    "properties": {
+                        "oldSetting": {
+                            "type": "boolean",
+                            "description": "Deprecated setting - use newSetting",
+                            "deprecated": true
+                        },
+                        "newSetting": {
+                            "type": "boolean",
+                            "description": "Current setting to use"
+                        },
+                        "oldOptions": {
+                            "type": "array",
+                            "description": "Deprecated options array - use newOptions",
+                            "deprecated": true,
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "key": { "type": "string" },
+                                    "value": { "type": "string" }
+                                }
+                            }
+                        },
+                        "newOptions": {
+                            "type": "array",
+                            "description": "Current options to use",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "key": { "type": "string" },
+                                    "value": { "type": "string" }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "required": ["id", "name"]
+        }
+        "##;
+
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+    let type_interface = schema_to_typescript(
+      "ObjectWithDeprecated".to_string(),
+      ReferenceOr::Item(schema),
+    );
+
+    let expected = r##"export type ObjectWithDeprecated = {
+  /**
+   * Unique identifier
+   */
+  id: string;
+  /**
+   * @deprecated Use name instead
+   */
+  oldName?: string;
+  /**
+   * The current name field
+   */
+  name: string;
+  /**
+   * @deprecated Use categories instead
+   */
+  oldTags?: string[];
+  /**
+   * Current categories field
+   */
+  categories?: string[];
+  config?: {
+    /**
+     * @deprecated Deprecated setting - use newSetting
+     */
+    oldSetting?: boolean;
+    /**
+     * Current setting to use
+     */
+    newSetting?: boolean;
+    /**
+     * @deprecated Deprecated options array - use newOptions
+     */
+    oldOptions?: {
+      key?: string;
+      value?: string;
+    }[];
+    /**
+     * Current options to use
+     */
+    newOptions?: {
+      key?: string;
+      value?: string;
+    }[];
+  };
 };"##;
 
     assert_eq!(type_interface.to_string(), expected.to_string());
