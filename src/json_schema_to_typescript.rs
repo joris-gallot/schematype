@@ -71,11 +71,15 @@ impl TypeInterface {
         }
     }
 
-    fn reference_to_string(reference: &RefProperty) -> String {
-        reference
-            .is_array
-            .then_some(format!("{}[]", reference.reference))
-            .unwrap_or(reference.reference.to_string())
+    fn reference_to_string(reference: &RefProperty, is_in_expression_array: bool) -> String {
+        if is_in_expression_array {
+            reference.reference.to_string()
+        } else {
+            reference
+                .is_array
+                .then_some(format!("{}[]", reference.reference))
+                .unwrap_or(reference.reference.to_string())
+        }
     }
 
     fn primitive_to_ts_string(primitive_type: &PrimitiveType) -> String {
@@ -194,7 +198,10 @@ impl TypeInterface {
                                             )
                                         }
                                         ObjectOrPrimitiveOrRef::RefProperty(reference) => {
-                                            TypeInterface::reference_to_string(reference)
+                                            TypeInterface::reference_to_string(
+                                                reference,
+                                                expression_is_array,
+                                            )
                                         }
                                     })
                                     .collect::<Vec<String>>()
@@ -235,7 +242,7 @@ impl TypeInterface {
                 TypeInterface::primitive_to_string(primitive, expression_is_array)
             }
             ObjectOrPrimitiveOrRef::RefProperty(reference) => {
-                TypeInterface::reference_to_string(reference)
+                TypeInterface::reference_to_string(reference, expression_is_array)
             }
         }
     }
@@ -965,83 +972,6 @@ mod tests {
     }
 
     #[test]
-    fn test_object_with_mixed_enums_oneof() {
-        let schema_json = r#"
-        {
-            "type": "object",
-            "properties": {
-                "id": { "type": "string" },
-                "value": {
-                    "oneOf": [
-                        {
-                            "type": "string",
-                            "enum": ["low", "medium", "high"]
-                        },
-                        {
-                            "type": "integer",
-                            "enum": [0, 1, 2]
-                        },
-                        {
-                            "type": "number",
-                            "enum": [0.5, 1.5, 2.5]
-                        },
-                        {
-                            "type": "array",
-                            "items": {
-                                "type": "string",
-                                "enum": ["A", "B", "C"]
-                            }
-                        },
-                        {
-                            "type": "boolean",
-                            "enum": [true, false]
-                        }
-                    ]
-                },
-                "mixedArray": {
-                    "type": "array",
-                    "items": {
-                        "oneOf": [
-                            {
-                                "type": "string",
-                                "enum": ["red", "green", "blue"]
-                            },
-                            {
-                                "type": "number",
-                                "enum": [1, 2, 3]
-                            },
-                            {
-                                "type": "boolean",
-                                "enum": [true]
-                            },
-                            {
-                                "type": "string",
-                                "enum": ["small", "medium", "large"]
-                            }
-                        ]
-                    }
-                }
-            },
-            "required": ["id", "value", "mixedArray"]
-        }
-        "#;
-
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
-
-        let type_interface =
-            schema_to_typescript("MixedEnum".to_string(), ReferenceOr::Item(schema));
-
-        let expected = r##"export type MixedEnum = {
-  id: string;
-  value: "low" | "medium" | "high" | 0 | 1 | 2 | 0.5 | 1.5 | 2.5 | ("A" | "B" | "C")[] | true | false;
-  mixedArray: ("red" | "green" | "blue" | 1 | 2 | 3 | true | "small" | "medium" | "large")[];
-};"##;
-
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
-
-    #[test]
     fn test_object_with_invalid_property() {
         let schema_json = r#"
         {
@@ -1076,8 +1006,91 @@ mod tests {
     }
 
     #[test]
+    fn test_object_with_mixed_enums_oneof() {
+        let schema_json = r##"
+        {
+            "type": "object",
+            "properties": {
+                "id": { "type": "string" },
+                "value": {
+                    "oneOf": [
+                        {
+                            "type": "string",
+                            "enum": ["low", "medium", "high"]
+                        },
+                        {
+                            "type": "integer",
+                            "enum": [0, 1, 2]
+                        },
+                        {
+                            "type": "number",
+                            "enum": [0.5, 1.5, 2.5]
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": ["A", "B", "C"]
+                            }
+                        },
+                        {
+                            "type": "boolean",
+                            "enum": [true, false]
+                        },
+                        {
+                            "$ref": "#/components/schemas/ExternalRef"
+                        }
+                    ]
+                },
+                "mixedArray": {
+                    "type": "array",
+                    "items": {
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "enum": ["red", "green", "blue"]
+                            },
+                            {
+                                "type": "number",
+                                "enum": [1, 2, 3]
+                            },
+                            {
+                                "type": "boolean",
+                                "enum": [true]
+                            },
+                            {
+                                "type": "string",
+                                "enum": ["small", "medium", "large"]
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalRef"
+                            }
+                        ]
+                    }
+                }
+            },
+            "required": ["id", "value", "mixedArray"]
+        }
+        "##;
+
+        let schema: Schema =
+            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+        let type_interface =
+            schema_to_typescript("MixedEnum".to_string(), ReferenceOr::Item(schema));
+
+        let expected = r##"export type MixedEnum = {
+  id: string;
+  value: "low" | "medium" | "high" | 0 | 1 | 2 | 0.5 | 1.5 | 2.5 | ("A" | "B" | "C")[] | true | false | ExternalRef;
+  mixedArray: ("red" | "green" | "blue" | 1 | 2 | 3 | true | "small" | "medium" | "large" | ExternalRef)[];
+};"##;
+
+        assert_eq!(type_interface.to_string(), expected.to_string());
+    }
+
+    #[test]
     fn test_object_with_mixed_enums_anyof() {
-        let schema_json = r#"
+        let schema_json = r##"
         {
             "type": "object",
             "properties": {
@@ -1106,6 +1119,9 @@ mod tests {
                         {
                             "type": "boolean",
                             "enum": [true, false]
+                        },
+                        {
+                            "$ref": "#/components/schemas/ExternalRef"
                         }
                     ]
                 },
@@ -1128,6 +1144,9 @@ mod tests {
                             {
                                 "type": "string",
                                 "enum": ["small", "medium", "large"]
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalRef"
                             }
                         ]
                     }
@@ -1135,7 +1154,7 @@ mod tests {
             },
             "required": ["id", "value", "mixedArray"]
         }
-        "#;
+        "##;
 
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
@@ -1145,8 +1164,8 @@ mod tests {
 
         let expected = r##"export type MixedEnum = {
   id: string;
-  value: "low" | "medium" | "high" | 0 | 1 | 2 | 0.5 | 1.5 | 2.5 | ("A" | "B" | "C")[] | true | false;
-  mixedArray: ("red" | "green" | "blue" | 1 | 2 | 3 | true | "small" | "medium" | "large")[];
+  value: "low" | "medium" | "high" | 0 | 1 | 2 | 0.5 | 1.5 | 2.5 | ("A" | "B" | "C")[] | true | false | ExternalRef;
+  mixedArray: ("red" | "green" | "blue" | 1 | 2 | 3 | true | "small" | "medium" | "large" | ExternalRef)[];
 };"##;
 
         assert_eq!(type_interface.to_string(), expected.to_string());
@@ -1154,7 +1173,7 @@ mod tests {
 
     #[test]
     fn test_object_with_mixed_enums_allof() {
-        let schema_json = r#"
+        let schema_json = r##"
         {
             "type": "object",
             "properties": {
@@ -1187,13 +1206,16 @@ mod tests {
                                     "enum": [true]
                                 }
                             }
+                        },
+                        {
+                            "$ref": "#/components/schemas/ExternalRef"
                         }
                     ]
                 }
             },
             "required": ["id", "value"]
         }
-        "#;
+        "##;
 
         let schema: Schema =
             serde_json::from_str(schema_json).expect("Could not deserialize schema");
@@ -1209,7 +1231,7 @@ mod tests {
     priority?: 1 | 2 | 3;
   } & {
     isEnabled?: true;
-  };
+  } & ExternalRef;
 };"##;
 
         assert_eq!(type_interface.to_string(), expected.to_string());
