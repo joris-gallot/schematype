@@ -55,6 +55,7 @@ struct ObjectProperty {
   name: String,
   expressions: Vec<Expression>,
   required: bool,
+  description: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -203,12 +204,20 @@ impl TypeInterface {
                 UnionOrIntersection::Union,
               )));
 
+            let whitespace = "  ".repeat(depth);
+            let comment = if let Some(description) = &property.description {
+              format!("{}/** {} */\n", whitespace, description)
+            } else {
+              "".to_string()
+            };
+
             format!(
-              "{}{}{}: {};",
-              "  ".repeat(depth),
+              "{}{}{}{}: {};",
+              comment,
+              whitespace,
               property.name,
               if property.required { "" } else { "?" },
-              ts_types_string,
+              ts_types_string
             )
           })
           .collect::<Vec<String>>();
@@ -429,6 +438,10 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
               name: key.to_string(),
               expressions: schema_to_typescript_expressions(value, false, None),
               required: object.required.contains(key),
+              description: match value {
+                ReferenceOr::Item(schema) => schema.as_schema().schema_data.description.clone(),
+                ReferenceOr::Reference { .. } => None,
+              },
             })
             .collect();
 
@@ -1974,6 +1987,95 @@ mod tests {
     name: string;
     references: ExternalRef[];
   };
+};"##;
+
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
+
+  #[test]
+  fn test_object_with_property_descriptions() {
+    let schema_json = r##"
+        {
+            "type": "object",
+            "description": "Root object description",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "description": "Unique identifier"
+                },
+                "numbers": {
+                    "type": "array",
+                    "description": "List of important numbers",
+                    "items": {
+                        "type": "number",
+                        "description": "A numeric value"
+                    }
+                },
+                "flags": {
+                    "type": "object", 
+                    "description": "Configuration flags",
+                    "properties": {
+                        "isEnabled": {
+                            "type": "boolean",
+                            "description": "Whether feature is enabled"
+                        },
+                        "priority": {
+                            "type": "integer",
+                            "description": "Priority level 1-5",
+                            "minimum": 1,
+                            "maximum": 5
+                        }
+                    },
+                    "required": ["isEnabled"]
+                },
+                "metadata": {
+                    "type": "array",
+                    "description": "List of metadata objects",
+                    "items": {
+                        "type": "object",
+                        "description": "Metadata entry",
+                        "properties": {
+                            "key": {
+                                "type": "string",
+                                "description": "Metadata key"
+                            },
+                            "value": {
+                                "type": "string",
+                                "description": "Metadata value"
+                            }
+                        },
+                        "required": ["key", "value"]
+                    }
+                }
+            },
+            "required": ["id", "flags", "metadata"]
+        }
+        "##;
+
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+    let type_interface =
+      schema_to_typescript("ComplexObject".to_string(), ReferenceOr::Item(schema));
+
+    let expected = r##"export type ComplexObject = {
+  /** Unique identifier */
+  id: string;
+  /** List of important numbers */
+  numbers?: number[];
+  /** Configuration flags */
+  flags: {
+    /** Whether feature is enabled */
+    isEnabled: boolean;
+    /** Priority level 1-5 */
+    priority?: number;
+  };
+  /** List of metadata objects */
+  metadata: {
+    /** Metadata key */
+    key: string;
+    /** Metadata value */
+    value: string;
+  }[];
 };"##;
 
     assert_eq!(type_interface.to_string(), expected.to_string());
