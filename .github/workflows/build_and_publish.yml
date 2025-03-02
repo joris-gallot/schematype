@@ -27,7 +27,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      - name: Audit
+        run: cargo audit
+      - name: Test
+        run: cargo test --verbose
+      - name: Clippy
+        run: cargo clippy --verbose -- -D warnings
   build:
+    needs: test
     if: ${{ github.event.pull_request.draft == false }}
     strategy:
       fail-fast: false
@@ -141,6 +154,7 @@ jobs:
             index.js
           if-no-files-found: error
   build-freebsd:
+    needs: test
     if: ${{ github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     name: Build FreeBSD
