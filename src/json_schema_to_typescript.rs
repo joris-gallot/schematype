@@ -1,6 +1,7 @@
 use openapiv3::{
   BooleanType, IntegerType, NumberType, ReferenceOr, Schema, SchemaKind, StringType, Type,
 };
+use std::fmt;
 
 #[derive(Debug, Clone)]
 enum ObjectOrPrimitiveOrRef {
@@ -105,36 +106,31 @@ impl TypeInterface {
           .unwrap_or(primitive_str)
       }
     } else {
-      let enum_string = format!(
-        "{}",
-        primitive
-          .enumeration
-          .iter()
-          .map(|s| {
-            if matches!(primitive.primitive_type, PrimitiveType::String) {
-              format!("\"{}\"", s)
-            } else {
-              s.to_string()
-            }
-          })
-          .collect::<Vec<String>>()
-          .join(TypeInterface::get_separator(&Some(
-            UnionOrIntersection::Union
-          )))
-      );
+      let enum_string = primitive
+        .enumeration
+        .iter()
+        .map(|s| {
+          if matches!(primitive.primitive_type, PrimitiveType::String) {
+            format!("\"{}\"", s)
+          } else {
+            s.to_string()
+          }
+        })
+        .collect::<Vec<String>>()
+        .join(TypeInterface::get_separator(&Some(
+          UnionOrIntersection::Union,
+        )));
 
       if is_in_expression_array {
         enum_string
-      } else {
-        if primitive.is_array {
-          if primitive.enumeration.len() > 1 {
-            format!("({})[]", enum_string)
-          } else {
-            format!("{}[]", enum_string)
-          }
+      } else if primitive.is_array {
+        if primitive.enumeration.len() > 1 {
+          format!("({})[]", enum_string)
         } else {
-          enum_string
+          format!("{}[]", enum_string)
         }
+      } else {
+        enum_string
       }
     }
   }
@@ -236,10 +232,12 @@ impl TypeInterface {
       }
     }
   }
+}
 
-  pub fn to_string(&self) -> String {
+impl fmt::Display for TypeInterface {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     if self.expressions.is_empty() {
-      return String::new();
+      return write!(f, "{}", String::new());
     }
 
     let types = self
@@ -258,7 +256,8 @@ impl TypeInterface {
       })
       .collect::<Vec<String>>();
 
-    format!(
+    write!(
+      f,
       "export type {} = {};",
       self.name,
       types.join(TypeInterface::get_separator(&Some(
@@ -332,9 +331,9 @@ where
   Expression {
     types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
       PrimitiveProperty {
-        primitive_type: primitive_type,
-        enumeration: enumeration,
-        is_array: is_array,
+        primitive_type,
+        enumeration,
+        is_array,
       },
     )],
     link: None,
@@ -342,16 +341,16 @@ where
 }
 
 fn schema_to_typescript_any_one_all_of_types(
-  schema: &Vec<ReferenceOr<Schema>>,
+  schema: &[ReferenceOr<Schema>],
   is_array: bool,
   separator: Option<UnionOrIntersection>,
 ) -> Vec<ObjectOrPrimitiveOrRef> {
   schema
     .iter()
-    .map(|any_of_item| schema_to_typescript_expressions(any_of_item, is_array, separator.clone()))
-    .flatten()
-    .map(|expression| expression.types)
-    .flatten()
+    .flat_map(|any_of_item| {
+      schema_to_typescript_expressions(any_of_item, is_array, separator.clone())
+    })
+    .flat_map(|expression| expression.types)
     .collect()
 }
 
@@ -436,7 +435,7 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
           vec![Expression {
             types: vec![ObjectOrPrimitiveOrRef::TypeObject(TypeObject {
               properties,
-              is_array: is_array,
+              is_array,
             })],
             link: None,
           }]
@@ -463,7 +462,7 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
               PrimitiveProperty {
                 primitive_type: PrimitiveType::Any,
                 enumeration: vec![],
-                is_array: is_array,
+                is_array,
               },
             )],
             link: None,
@@ -481,7 +480,7 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
                 PrimitiveProperty {
                   primitive_type: PrimitiveType::Null,
                   enumeration: vec![],
-                  is_array: is_array,
+                  is_array,
                 },
               ));
             expression
@@ -493,20 +492,20 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
     }
     ReferenceOr::Reference { reference } => {
       let reference_name = reference.split('/').last().unwrap_or_default().to_string();
-      return vec![Expression {
+      vec![Expression {
         types: vec![ObjectOrPrimitiveOrRef::RefProperty(RefProperty {
           reference: reference_name,
-          is_array: is_array,
+          is_array,
         })],
         link: separator,
-      }];
+      }]
     }
   }
 }
 
 pub fn schema_to_typescript(name: String, schema: ReferenceOr<Schema>) -> TypeInterface {
   TypeInterface {
-    name: name,
+    name,
     expressions: schema_to_typescript_expressions(&schema, false, None),
   }
 }

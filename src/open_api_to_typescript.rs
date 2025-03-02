@@ -1,6 +1,6 @@
 use crate::json_schema_to_typescript::TypeInterface;
-use openapiv3::{OpenAPI, Operation, StatusCode};
-use openapiv3::{ReferenceOr, Schema};
+use openapiv3::{OpenAPI, Operation, ReferenceOr, Schema, StatusCode};
+use std::fmt;
 
 #[derive(Debug)]
 enum OpenApiMethod {
@@ -29,7 +29,7 @@ impl OpenApiClient {
     }
   }
 
-  fn get_interface_name(path: &String, method: &OpenApiMethod) -> String {
+  fn get_interface_name(path: &str, method: &OpenApiMethod) -> String {
     format!(
       "{}{}",
       OpenApiClient::open_api_method_to_string(method),
@@ -41,12 +41,14 @@ impl OpenApiClient {
         .collect::<String>()
     )
   }
+}
 
-  fn to_string(&self) -> String {
-    self
+impl fmt::Display for OpenApiClient {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    let result = self
       .paths
       .iter()
-      .map(|path| {
+      .flat_map(|path| {
         let request_body_interface: Option<TypeInterface> = match &path.request_body {
           Some(request_body) => {
             let request_interface_name = format!(
@@ -75,7 +77,7 @@ impl OpenApiClient {
               response.schema.clone(),
             );
 
-            format!("{}", interface.to_string())
+            interface.to_string()
           })
           .collect::<Vec<String>>()
           .join("\n");
@@ -93,9 +95,10 @@ impl OpenApiClient {
           }
         ))
       })
-      .filter_map(|response| response)
       .collect::<Vec<String>>()
-      .join("\n")
+      .join("\n");
+
+    write!(f, "{}", result)
   }
 }
 
@@ -103,7 +106,9 @@ impl OpenApiClient {
 struct OpenApiPath {
   path: String,
   method: OpenApiMethod,
+  #[allow(dead_code)] // TODO: remove this
   summary: Option<String>,
+  #[allow(dead_code)] // TODO: remove this
   description: Option<String>,
   // parameters: Vec<OpenApiParameter>,
   request_body: Option<ReferenceOr<Schema>>,
@@ -112,19 +117,18 @@ struct OpenApiPath {
 
 #[derive(Debug)]
 struct OpenApiResponse {
+  #[allow(dead_code)] // TODO: remove this
   status_code: StatusCode,
+  #[allow(dead_code)] // TODO: remove this
   description: String,
   schema: ReferenceOr<Schema>,
 }
 
-fn get_open_api_path(path: &String, method: OpenApiMethod, operation: &Operation) -> OpenApiPath {
+fn get_open_api_path(path: &str, method: OpenApiMethod, operation: &Operation) -> OpenApiPath {
   let request_body: Option<ReferenceOr<Schema>> = match &operation.request_body {
     Some(request_body) => match request_body {
       ReferenceOr::Item(request_body) => match request_body.content.get("application/json") {
-        Some(content) => match &content.schema {
-          Some(schema) => Some(schema.clone()),
-          None => None,
-        },
+        Some(content) => content.schema.clone(),
         None => None,
       },
       ReferenceOr::Reference { reference } => {
@@ -138,7 +142,7 @@ fn get_open_api_path(path: &String, method: OpenApiMethod, operation: &Operation
     .responses
     .responses
     .iter()
-    .map(|(status_code, response)| {
+    .filter_map(|(status_code, response)| {
       let res = match response {
         ReferenceOr::Item(response) => response,
         ReferenceOr::Reference { reference } => {
@@ -160,16 +164,15 @@ fn get_open_api_path(path: &String, method: OpenApiMethod, operation: &Operation
         schema: res_schema.clone(),
       })
     })
-    .filter_map(|response| response)
     .collect();
 
   OpenApiPath {
-    path: path.clone(),
-    method: method,
+    path: path.to_string(),
+    method,
     summary: operation.summary.clone(),
     description: operation.description.clone(),
-    request_body: request_body,
-    responses: responses,
+    request_body,
+    responses,
   }
 }
 
@@ -221,5 +224,5 @@ pub fn open_api_to_typescript(open_api: OpenAPI) {
     }
   }
 
-  println!("{}", client.to_string());
+  println!("{}", client);
 }
