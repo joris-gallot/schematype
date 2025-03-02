@@ -1,535 +1,523 @@
 use openapiv3::{
-    BooleanType, IntegerType, NumberType, ReferenceOr, Schema, SchemaKind, StringType, Type,
+  BooleanType, IntegerType, NumberType, ReferenceOr, Schema, SchemaKind, StringType, Type,
 };
 
 #[derive(Debug, Clone)]
 enum ObjectOrPrimitiveOrRef {
-    TypeObject(TypeObject),
-    PrimitiveProperty(PrimitiveProperty),
-    RefProperty(RefProperty),
+  TypeObject(TypeObject),
+  PrimitiveProperty(PrimitiveProperty),
+  RefProperty(RefProperty),
 }
 
 #[derive(Debug, Clone)]
 enum UnionOrIntersection {
-    Union,
-    Intersection,
+  Union,
+  Intersection,
 }
 
 #[derive(Debug)]
 pub struct TypeInterface {
-    name: String,
-    expressions: Vec<Expression>,
+  name: String,
+  expressions: Vec<Expression>,
 }
 
 #[derive(Debug, Clone)]
 struct TypeObject {
-    properties: Vec<ObjectProperty>,
-    is_array: bool,
+  properties: Vec<ObjectProperty>,
+  is_array: bool,
 }
 
 #[derive(Debug, Clone)]
 enum PrimitiveType {
-    String,
-    Number,
-    Boolean,
-    Null,
-    Any,
+  String,
+  Number,
+  Boolean,
+  Null,
+  Any,
 }
 
 #[derive(Debug, Clone)]
 struct RefProperty {
-    reference: String,
-    is_array: bool,
+  reference: String,
+  is_array: bool,
 }
 
 #[derive(Debug, Clone)]
 struct PrimitiveProperty {
-    primitive_type: PrimitiveType,
-    enumeration: Vec<String>,
-    is_array: bool,
+  primitive_type: PrimitiveType,
+  enumeration: Vec<String>,
+  is_array: bool,
 }
 
 #[derive(Debug, Clone)]
 struct ObjectProperty {
-    name: String,
-    expressions: Vec<Expression>,
-    required: bool,
+  name: String,
+  expressions: Vec<Expression>,
+  required: bool,
 }
 
 #[derive(Debug, Clone)]
 struct Expression {
-    types: Vec<ObjectOrPrimitiveOrRef>,
-    link: Option<UnionOrIntersection>,
+  types: Vec<ObjectOrPrimitiveOrRef>,
+  link: Option<UnionOrIntersection>,
 }
 
 impl TypeInterface {
-    fn get_separator(separator: &Option<UnionOrIntersection>) -> &'static str {
-        match separator {
-            Some(UnionOrIntersection::Union) => " | ",
-            Some(UnionOrIntersection::Intersection) => " & ",
-            None => " | ",
-        }
+  fn get_separator(separator: &Option<UnionOrIntersection>) -> &'static str {
+    match separator {
+      Some(UnionOrIntersection::Union) => " | ",
+      Some(UnionOrIntersection::Intersection) => " & ",
+      None => " | ",
     }
+  }
 
-    fn reference_to_string(reference: &RefProperty, is_in_expression_array: bool) -> String {
-        if is_in_expression_array {
-            reference.reference.to_string()
-        } else {
-            reference
-                .is_array
-                .then_some(format!("{}[]", reference.reference))
-                .unwrap_or(reference.reference.to_string())
-        }
+  fn reference_to_string(reference: &RefProperty, is_in_expression_array: bool) -> String {
+    if is_in_expression_array {
+      reference.reference.to_string()
+    } else {
+      reference
+        .is_array
+        .then_some(format!("{}[]", reference.reference))
+        .unwrap_or(reference.reference.to_string())
     }
+  }
 
-    fn primitive_to_ts_string(primitive_type: &PrimitiveType) -> String {
-        match primitive_type {
-            PrimitiveType::String => "string".to_string(),
-            PrimitiveType::Number => "number".to_string(),
-            PrimitiveType::Boolean => "boolean".to_string(),
-            PrimitiveType::Null => "null".to_string(),
-            PrimitiveType::Any => "any".to_string(),
-        }
+  fn primitive_to_ts_string(primitive_type: &PrimitiveType) -> String {
+    match primitive_type {
+      PrimitiveType::String => "string".to_string(),
+      PrimitiveType::Number => "number".to_string(),
+      PrimitiveType::Boolean => "boolean".to_string(),
+      PrimitiveType::Null => "null".to_string(),
+      PrimitiveType::Any => "any".to_string(),
     }
+  }
 
-    fn primitive_to_string(primitive: &PrimitiveProperty, is_in_expression_array: bool) -> String {
-        let primitive_str = TypeInterface::primitive_to_ts_string(&primitive.primitive_type);
+  fn primitive_to_string(primitive: &PrimitiveProperty, is_in_expression_array: bool) -> String {
+    let primitive_str = TypeInterface::primitive_to_ts_string(&primitive.primitive_type);
 
-        if primitive.enumeration.is_empty() {
-            if is_in_expression_array {
-                primitive_str
+    if primitive.enumeration.is_empty() {
+      if is_in_expression_array {
+        primitive_str
+      } else {
+        primitive
+          .is_array
+          .then_some(format!("{}[]", primitive_str))
+          .unwrap_or(primitive_str)
+      }
+    } else {
+      let enum_string = format!(
+        "{}",
+        primitive
+          .enumeration
+          .iter()
+          .map(|s| {
+            if matches!(primitive.primitive_type, PrimitiveType::String) {
+              format!("\"{}\"", s)
             } else {
-                primitive
-                    .is_array
-                    .then_some(format!("{}[]", primitive_str))
-                    .unwrap_or(primitive_str)
+              s.to_string()
             }
+          })
+          .collect::<Vec<String>>()
+          .join(TypeInterface::get_separator(&Some(
+            UnionOrIntersection::Union
+          )))
+      );
+
+      if is_in_expression_array {
+        enum_string
+      } else {
+        if primitive.is_array {
+          if primitive.enumeration.len() > 1 {
+            format!("({})[]", enum_string)
+          } else {
+            format!("{}[]", enum_string)
+          }
         } else {
-            let enum_string = format!(
-                "{}",
-                primitive
-                    .enumeration
-                    .iter()
-                    .map(|s| {
-                        if matches!(primitive.primitive_type, PrimitiveType::String) {
-                            format!("\"{}\"", s)
-                        } else {
-                            s.to_string()
-                        }
-                    })
-                    .collect::<Vec<String>>()
-                    .join(TypeInterface::get_separator(&Some(
-                        UnionOrIntersection::Union
-                    )))
-            );
-
-            if is_in_expression_array {
-                enum_string
-            } else {
-                if primitive.is_array {
-                    if primitive.enumeration.len() > 1 {
-                        format!("({})[]", enum_string)
-                    } else {
-                        format!("{}[]", enum_string)
-                    }
-                } else {
-                    enum_string
-                }
-            }
+          enum_string
         }
+      }
     }
+  }
 
-    fn format_string_expression(exp_string: String, is_array: bool) -> String {
-        format!(
-            "{}{}{}{}",
-            if is_array { "(" } else { "" },
-            exp_string,
-            if is_array { ")" } else { "" },
-            if is_array { "[]" } else { "" }
-        )
-    }
+  fn format_string_expression(exp_string: String, is_array: bool) -> String {
+    format!(
+      "{}{}{}{}",
+      if is_array { "(" } else { "" },
+      exp_string,
+      if is_array { ")" } else { "" },
+      if is_array { "[]" } else { "" }
+    )
+  }
 
-    fn expression_is_array(expression: &Expression) -> bool {
-        expression.types.len() > 1
-            && expression.types.iter().all(|t| match t {
-                ObjectOrPrimitiveOrRef::TypeObject(obj) => obj.is_array,
-                ObjectOrPrimitiveOrRef::PrimitiveProperty(primitive) => primitive.is_array,
-                ObjectOrPrimitiveOrRef::RefProperty(reference) => reference.is_array,
-            })
-    }
+  fn expression_is_array(expression: &Expression) -> bool {
+    expression.types.len() > 1
+      && expression.types.iter().all(|t| match t {
+        ObjectOrPrimitiveOrRef::TypeObject(obj) => obj.is_array,
+        ObjectOrPrimitiveOrRef::PrimitiveProperty(primitive) => primitive.is_array,
+        ObjectOrPrimitiveOrRef::RefProperty(reference) => reference.is_array,
+      })
+  }
 
-    fn type_object_to_string(
-        object: &ObjectOrPrimitiveOrRef,
-        depth: usize,
-        expression_is_array: bool,
-    ) -> String {
-        match object {
-            ObjectOrPrimitiveOrRef::TypeObject(type_object) => {
-                if type_object.properties.is_empty() {
-                    return "{}".to_string();
-                }
-
-                let object_string = type_object
-                    .properties
-                    .iter()
-                    .map(|property| {
-                        let ts_types_string = property
-                            .expressions
-                            .iter()
-                            .map(|expression| {
-                                let expression_is_array =
-                                    TypeInterface::expression_is_array(expression);
-
-                                let exp_string = expression
-                                    .types
-                                    .iter()
-                                    .map(|t| match t {
-                                        ObjectOrPrimitiveOrRef::TypeObject(obj) => {
-                                            TypeInterface::type_object_to_string(
-                                                &ObjectOrPrimitiveOrRef::TypeObject(obj.clone()),
-                                                depth + 1,
-                                                expression_is_array,
-                                            )
-                                        }
-                                        ObjectOrPrimitiveOrRef::PrimitiveProperty(primitive) => {
-                                            TypeInterface::primitive_to_string(
-                                                primitive,
-                                                expression_is_array,
-                                            )
-                                        }
-                                        ObjectOrPrimitiveOrRef::RefProperty(reference) => {
-                                            TypeInterface::reference_to_string(
-                                                reference,
-                                                expression_is_array,
-                                            )
-                                        }
-                                    })
-                                    .collect::<Vec<String>>()
-                                    .join(TypeInterface::get_separator(&expression.link));
-
-                                TypeInterface::format_string_expression(
-                                    exp_string,
-                                    expression_is_array,
-                                )
-                            })
-                            .collect::<Vec<String>>()
-                            .join(TypeInterface::get_separator(&Some(
-                                UnionOrIntersection::Union,
-                            )));
-
-                        format!(
-                            "{}{}{}: {};",
-                            "  ".repeat(depth),
-                            property.name,
-                            if property.required { "" } else { "?" },
-                            ts_types_string,
-                        )
-                    })
-                    .collect::<Vec<String>>();
-
-                format!(
-                    "{{\n{}\n{}}}{}",
-                    object_string.join("\n"),
-                    "  ".repeat(depth - 1),
-                    if type_object.is_array && !expression_is_array {
-                        "[]"
-                    } else {
-                        ""
-                    }
-                )
-            }
-            ObjectOrPrimitiveOrRef::PrimitiveProperty(primitive) => {
-                TypeInterface::primitive_to_string(primitive, expression_is_array)
-            }
-            ObjectOrPrimitiveOrRef::RefProperty(reference) => {
-                TypeInterface::reference_to_string(reference, expression_is_array)
-            }
-        }
-    }
-
-    pub fn to_string(&self) -> String {
-        if self.expressions.is_empty() {
-            return String::new();
+  fn type_object_to_string(
+    object: &ObjectOrPrimitiveOrRef,
+    depth: usize,
+    expression_is_array: bool,
+  ) -> String {
+    match object {
+      ObjectOrPrimitiveOrRef::TypeObject(type_object) => {
+        if type_object.properties.is_empty() {
+          return "{}".to_string();
         }
 
-        let types = self
-            .expressions
-            .iter()
-            .map(|expression| {
+        let object_string = type_object
+          .properties
+          .iter()
+          .map(|property| {
+            let ts_types_string = property
+              .expressions
+              .iter()
+              .map(|expression| {
                 let expression_is_array = TypeInterface::expression_is_array(expression);
+
                 let exp_string = expression
-                    .types
-                    .iter()
-                    .map(|t| TypeInterface::type_object_to_string(t, 1, expression_is_array))
-                    .collect::<Vec<String>>()
-                    .join(TypeInterface::get_separator(&expression.link));
+                  .types
+                  .iter()
+                  .map(|t| match t {
+                    ObjectOrPrimitiveOrRef::TypeObject(obj) => {
+                      TypeInterface::type_object_to_string(
+                        &ObjectOrPrimitiveOrRef::TypeObject(obj.clone()),
+                        depth + 1,
+                        expression_is_array,
+                      )
+                    }
+                    ObjectOrPrimitiveOrRef::PrimitiveProperty(primitive) => {
+                      TypeInterface::primitive_to_string(primitive, expression_is_array)
+                    }
+                    ObjectOrPrimitiveOrRef::RefProperty(reference) => {
+                      TypeInterface::reference_to_string(reference, expression_is_array)
+                    }
+                  })
+                  .collect::<Vec<String>>()
+                  .join(TypeInterface::get_separator(&expression.link));
 
                 TypeInterface::format_string_expression(exp_string, expression_is_array)
-            })
-            .collect::<Vec<String>>();
+              })
+              .collect::<Vec<String>>()
+              .join(TypeInterface::get_separator(&Some(
+                UnionOrIntersection::Union,
+              )));
+
+            format!(
+              "{}{}{}: {};",
+              "  ".repeat(depth),
+              property.name,
+              if property.required { "" } else { "?" },
+              ts_types_string,
+            )
+          })
+          .collect::<Vec<String>>();
 
         format!(
-            "export type {} = {};",
-            self.name,
-            types.join(TypeInterface::get_separator(&Some(
-                UnionOrIntersection::Union
-            )))
+          "{{\n{}\n{}}}{}",
+          object_string.join("\n"),
+          "  ".repeat(depth - 1),
+          if type_object.is_array && !expression_is_array {
+            "[]"
+          } else {
+            ""
+          }
         )
+      }
+      ObjectOrPrimitiveOrRef::PrimitiveProperty(primitive) => {
+        TypeInterface::primitive_to_string(primitive, expression_is_array)
+      }
+      ObjectOrPrimitiveOrRef::RefProperty(reference) => {
+        TypeInterface::reference_to_string(reference, expression_is_array)
+      }
     }
+  }
+
+  pub fn to_string(&self) -> String {
+    if self.expressions.is_empty() {
+      return String::new();
+    }
+
+    let types = self
+      .expressions
+      .iter()
+      .map(|expression| {
+        let expression_is_array = TypeInterface::expression_is_array(expression);
+        let exp_string = expression
+          .types
+          .iter()
+          .map(|t| TypeInterface::type_object_to_string(t, 1, expression_is_array))
+          .collect::<Vec<String>>()
+          .join(TypeInterface::get_separator(&expression.link));
+
+        TypeInterface::format_string_expression(exp_string, expression_is_array)
+      })
+      .collect::<Vec<String>>();
+
+    format!(
+      "export type {} = {};",
+      self.name,
+      types.join(TypeInterface::get_separator(&Some(
+        UnionOrIntersection::Union
+      )))
+    )
+  }
 }
 
 trait HasEnumeration {
-    type ReturnType;
-    fn get_enumeration(&self) -> &Vec<Option<Self::ReturnType>>;
-    fn to_string(&self, value: &Self::ReturnType) -> String;
+  type ReturnType;
+  fn get_enumeration(&self) -> &Vec<Option<Self::ReturnType>>;
+  fn to_string(&self, value: &Self::ReturnType) -> String;
 }
 
 impl HasEnumeration for NumberType {
-    type ReturnType = f64;
-    fn get_enumeration(&self) -> &Vec<Option<Self::ReturnType>> {
-        &self.enumeration
-    }
-    fn to_string(&self, value: &Self::ReturnType) -> String {
-        value.to_string()
-    }
+  type ReturnType = f64;
+  fn get_enumeration(&self) -> &Vec<Option<Self::ReturnType>> {
+    &self.enumeration
+  }
+  fn to_string(&self, value: &Self::ReturnType) -> String {
+    value.to_string()
+  }
 }
 
 impl HasEnumeration for IntegerType {
-    type ReturnType = i64;
-    fn get_enumeration(&self) -> &Vec<Option<Self::ReturnType>> {
-        &self.enumeration
-    }
-    fn to_string(&self, value: &Self::ReturnType) -> String {
-        value.to_string()
-    }
+  type ReturnType = i64;
+  fn get_enumeration(&self) -> &Vec<Option<Self::ReturnType>> {
+    &self.enumeration
+  }
+  fn to_string(&self, value: &Self::ReturnType) -> String {
+    value.to_string()
+  }
 }
 
 impl HasEnumeration for StringType {
-    type ReturnType = String;
-    fn get_enumeration(&self) -> &Vec<Option<Self::ReturnType>> {
-        &self.enumeration
-    }
-    fn to_string(&self, value: &Self::ReturnType) -> String {
-        value.to_string()
-    }
+  type ReturnType = String;
+  fn get_enumeration(&self) -> &Vec<Option<Self::ReturnType>> {
+    &self.enumeration
+  }
+  fn to_string(&self, value: &Self::ReturnType) -> String {
+    value.to_string()
+  }
 }
 
 impl HasEnumeration for BooleanType {
-    type ReturnType = bool;
-    fn get_enumeration(&self) -> &Vec<Option<Self::ReturnType>> {
-        &self.enumeration
-    }
-    fn to_string(&self, value: &Self::ReturnType) -> String {
-        value.to_string()
-    }
+  type ReturnType = bool;
+  fn get_enumeration(&self) -> &Vec<Option<Self::ReturnType>> {
+    &self.enumeration
+  }
+  fn to_string(&self, value: &Self::ReturnType) -> String {
+    value.to_string()
+  }
 }
 
 fn get_primitive_expression<T>(
-    type_with_enum: &T,
-    primitive_type: PrimitiveType,
-    is_array: bool,
+  type_with_enum: &T,
+  primitive_type: PrimitiveType,
+  is_array: bool,
 ) -> Expression
 where
-    T: HasEnumeration,
+  T: HasEnumeration,
 {
-    let enumeration = type_with_enum
-        .get_enumeration()
-        .iter()
-        .filter(|s| s.is_some())
-        .map(|s| T::to_string(type_with_enum, s.as_ref().unwrap()))
-        .collect::<Vec<String>>();
+  let enumeration = type_with_enum
+    .get_enumeration()
+    .iter()
+    .filter(|s| s.is_some())
+    .map(|s| T::to_string(type_with_enum, s.as_ref().unwrap()))
+    .collect::<Vec<String>>();
 
-    Expression {
-        types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
-            PrimitiveProperty {
-                primitive_type: primitive_type,
-                enumeration: enumeration,
-                is_array: is_array,
-            },
-        )],
-        link: None,
-    }
+  Expression {
+    types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
+      PrimitiveProperty {
+        primitive_type: primitive_type,
+        enumeration: enumeration,
+        is_array: is_array,
+      },
+    )],
+    link: None,
+  }
 }
 
 fn schema_to_typescript_any_one_all_of_types(
-    schema: &Vec<ReferenceOr<Schema>>,
-    is_array: bool,
-    separator: Option<UnionOrIntersection>,
+  schema: &Vec<ReferenceOr<Schema>>,
+  is_array: bool,
+  separator: Option<UnionOrIntersection>,
 ) -> Vec<ObjectOrPrimitiveOrRef> {
-    schema
-        .iter()
-        .map(|any_of_item| {
-            schema_to_typescript_expressions(any_of_item, is_array, separator.clone())
-        })
-        .flatten()
-        .map(|expression| expression.types)
-        .flatten()
-        .collect()
+  schema
+    .iter()
+    .map(|any_of_item| schema_to_typescript_expressions(any_of_item, is_array, separator.clone()))
+    .flatten()
+    .map(|expression| expression.types)
+    .flatten()
+    .collect()
 }
 
 trait SchemaLike {
-    fn as_schema(&self) -> &Schema;
+  fn as_schema(&self) -> &Schema;
 }
 
 impl SchemaLike for Schema {
-    fn as_schema(&self) -> &Schema {
-        self
-    }
+  fn as_schema(&self) -> &Schema {
+    self
+  }
 }
 
 impl SchemaLike for Box<Schema> {
-    fn as_schema(&self) -> &Schema {
-        self.as_ref()
-    }
+  fn as_schema(&self) -> &Schema {
+    self.as_ref()
+  }
 }
 
 fn schema_to_typescript_expressions<T: SchemaLike>(
-    schema: &ReferenceOr<T>,
-    is_array: bool,
-    separator: Option<UnionOrIntersection>,
+  schema: &ReferenceOr<T>,
+  is_array: bool,
+  separator: Option<UnionOrIntersection>,
 ) -> Vec<Expression> {
-    match schema {
-        ReferenceOr::Item(schema) => {
-            let schema = schema.as_schema();
+  match schema {
+    ReferenceOr::Item(schema) => {
+      let schema = schema.as_schema();
 
-            let base_expressions = match &schema.schema_kind {
-                SchemaKind::Type(Type::String(string_type)) => {
-                    vec![get_primitive_expression(
-                        string_type,
-                        PrimitiveType::String,
-                        is_array,
-                    )]
-                }
-                SchemaKind::Type(Type::Number(number_type)) => {
-                    vec![get_primitive_expression(
-                        number_type,
-                        PrimitiveType::Number,
-                        is_array,
-                    )]
-                }
-                SchemaKind::Type(Type::Integer(integer_type)) => {
-                    vec![get_primitive_expression(
-                        integer_type,
-                        PrimitiveType::Number,
-                        is_array,
-                    )]
-                }
-                SchemaKind::Type(Type::Boolean(boolean_type)) => {
-                    vec![get_primitive_expression(
-                        boolean_type,
-                        PrimitiveType::Boolean,
-                        is_array,
-                    )]
-                }
-                SchemaKind::Type(Type::Array(v)) => match &v.items {
-                    Some(item) => schema_to_typescript_expressions(item, true, separator.clone()),
-                    None => vec![Expression {
-                        types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
-                            PrimitiveProperty {
-                                primitive_type: PrimitiveType::Any,
-                                enumeration: vec![],
-                                is_array: true,
-                            },
-                        )],
-                        link: None,
-                    }],
+      let base_expressions = match &schema.schema_kind {
+        SchemaKind::Type(Type::String(string_type)) => {
+          vec![get_primitive_expression(
+            string_type,
+            PrimitiveType::String,
+            is_array,
+          )]
+        }
+        SchemaKind::Type(Type::Number(number_type)) => {
+          vec![get_primitive_expression(
+            number_type,
+            PrimitiveType::Number,
+            is_array,
+          )]
+        }
+        SchemaKind::Type(Type::Integer(integer_type)) => {
+          vec![get_primitive_expression(
+            integer_type,
+            PrimitiveType::Number,
+            is_array,
+          )]
+        }
+        SchemaKind::Type(Type::Boolean(boolean_type)) => {
+          vec![get_primitive_expression(
+            boolean_type,
+            PrimitiveType::Boolean,
+            is_array,
+          )]
+        }
+        SchemaKind::Type(Type::Array(v)) => match &v.items {
+          Some(item) => schema_to_typescript_expressions(item, true, separator.clone()),
+          None => vec![Expression {
+            types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
+              PrimitiveProperty {
+                primitive_type: PrimitiveType::Any,
+                enumeration: vec![],
+                is_array: true,
+              },
+            )],
+            link: None,
+          }],
+        },
+        SchemaKind::Type(Type::Object(object)) => {
+          let properties: Vec<ObjectProperty> = object
+            .properties
+            .iter()
+            .map(|(key, value)| ObjectProperty {
+              name: key.to_string(),
+              expressions: schema_to_typescript_expressions(value, false, None),
+              required: object.required.contains(key),
+            })
+            .collect();
+
+          vec![Expression {
+            types: vec![ObjectOrPrimitiveOrRef::TypeObject(TypeObject {
+              properties,
+              is_array: is_array,
+            })],
+            link: None,
+          }]
+        }
+        SchemaKind::AnyOf { any_of } => vec![Expression {
+          types: schema_to_typescript_any_one_all_of_types(any_of, is_array, None),
+          link: Some(UnionOrIntersection::Union),
+        }],
+        SchemaKind::OneOf { one_of } => vec![Expression {
+          types: schema_to_typescript_any_one_all_of_types(one_of, is_array, None),
+          link: Some(UnionOrIntersection::Union),
+        }],
+        SchemaKind::AllOf { all_of } => vec![Expression {
+          types: schema_to_typescript_any_one_all_of_types(all_of, is_array, None),
+          link: Some(UnionOrIntersection::Intersection),
+        }],
+        _ => {
+          println!(
+            "schema type not recognized, defaulting to any type\n{:?}",
+            schema.schema_kind
+          );
+          vec![Expression {
+            types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
+              PrimitiveProperty {
+                primitive_type: PrimitiveType::Any,
+                enumeration: vec![],
+                is_array: is_array,
+              },
+            )],
+            link: None,
+          }]
+        }
+      };
+
+      if schema.schema_data.nullable {
+        base_expressions
+          .into_iter()
+          .map(|mut expression| {
+            expression
+              .types
+              .push(ObjectOrPrimitiveOrRef::PrimitiveProperty(
+                PrimitiveProperty {
+                  primitive_type: PrimitiveType::Null,
+                  enumeration: vec![],
+                  is_array: is_array,
                 },
-                SchemaKind::Type(Type::Object(object)) => {
-                    let properties: Vec<ObjectProperty> = object
-                        .properties
-                        .iter()
-                        .map(|(key, value)| ObjectProperty {
-                            name: key.to_string(),
-                            expressions: schema_to_typescript_expressions(value, false, None),
-                            required: object.required.contains(key),
-                        })
-                        .collect();
-
-                    vec![Expression {
-                        types: vec![ObjectOrPrimitiveOrRef::TypeObject(TypeObject {
-                            properties,
-                            is_array: is_array,
-                        })],
-                        link: None,
-                    }]
-                }
-                SchemaKind::AnyOf { any_of } => vec![Expression {
-                    types: schema_to_typescript_any_one_all_of_types(any_of, is_array, None),
-                    link: Some(UnionOrIntersection::Union),
-                }],
-                SchemaKind::OneOf { one_of } => vec![Expression {
-                    types: schema_to_typescript_any_one_all_of_types(one_of, is_array, None),
-                    link: Some(UnionOrIntersection::Union),
-                }],
-                SchemaKind::AllOf { all_of } => vec![Expression {
-                    types: schema_to_typescript_any_one_all_of_types(all_of, is_array, None),
-                    link: Some(UnionOrIntersection::Intersection),
-                }],
-                _ => {
-                    println!(
-                        "schema type not recognized, defaulting to any type\n{:?}",
-                        schema.schema_kind
-                    );
-                    vec![Expression {
-                        types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
-                            PrimitiveProperty {
-                                primitive_type: PrimitiveType::Any,
-                                enumeration: vec![],
-                                is_array: is_array,
-                            },
-                        )],
-                        link: None,
-                    }]
-                }
-            };
-
-            if schema.schema_data.nullable {
-                base_expressions
-                    .into_iter()
-                    .map(|mut expression| {
-                        expression
-                            .types
-                            .push(ObjectOrPrimitiveOrRef::PrimitiveProperty(
-                                PrimitiveProperty {
-                                    primitive_type: PrimitiveType::Null,
-                                    enumeration: vec![],
-                                    is_array: is_array,
-                                },
-                            ));
-                        expression
-                    })
-                    .collect()
-            } else {
-                base_expressions
-            }
-        }
-        ReferenceOr::Reference { reference } => {
-            let reference_name = reference.split('/').last().unwrap_or_default().to_string();
-            return vec![Expression {
-                types: vec![ObjectOrPrimitiveOrRef::RefProperty(RefProperty {
-                    reference: reference_name,
-                    is_array: is_array,
-                })],
-                link: separator,
-            }];
-        }
+              ));
+            expression
+          })
+          .collect()
+      } else {
+        base_expressions
+      }
     }
+    ReferenceOr::Reference { reference } => {
+      let reference_name = reference.split('/').last().unwrap_or_default().to_string();
+      return vec![Expression {
+        types: vec![ObjectOrPrimitiveOrRef::RefProperty(RefProperty {
+          reference: reference_name,
+          is_array: is_array,
+        })],
+        link: separator,
+      }];
+    }
+  }
 }
 
 pub fn schema_to_typescript(name: String, schema: ReferenceOr<Schema>) -> TypeInterface {
-    TypeInterface {
-        name: name,
-        expressions: schema_to_typescript_expressions(&schema, false, None),
-    }
+  TypeInterface {
+    name: name,
+    expressions: schema_to_typescript_expressions(&schema, false, None),
+  }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+  use super::*;
 
-    #[test]
-    fn test_empty_object() {
-        let schema_json = r#"
+  #[test]
+  fn test_empty_object() {
+    let schema_json = r#"
         {
             "type": "object",
             "properties": {
@@ -541,21 +529,19 @@ mod tests {
         }
         "#;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("EmptyObject".to_string(), ReferenceOr::Item(schema));
+    let type_interface = schema_to_typescript("EmptyObject".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type EmptyObject = {
+    let expected = r##"export type EmptyObject = {
   metadata?: {};
 };"##;
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_basic_object() {
-        let schema_json = r#"
+  #[test]
+  fn test_basic_object() {
+    let schema_json = r#"
         {
             "type": "object",
             "properties": {
@@ -569,12 +555,11 @@ mod tests {
         }
         "#;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("Book".to_string(), ReferenceOr::Item(schema));
+    let type_interface = schema_to_typescript("Book".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type Book = {
+    let expected = r##"export type Book = {
   id?: string;
   title?: string;
   author?: string;
@@ -582,12 +567,12 @@ mod tests {
   rating?: number;
   age?: number;
 };"##;
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_array() {
-        let schema_json = r#"
+  #[test]
+  fn test_object_with_array() {
+    let schema_json = r#"
         {
             "type": "object",
             "properties": {
@@ -598,23 +583,22 @@ mod tests {
         }
         "#;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("BookMetadata".to_string(), ReferenceOr::Item(schema));
+    let type_interface =
+      schema_to_typescript("BookMetadata".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type BookMetadata = {
+    let expected = r##"export type BookMetadata = {
   id?: string;
   genres?: string[];
   tags?: string[];
 };"##;
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_required_properties() {
-        let schema_json = r#"
+  #[test]
+  fn test_object_with_required_properties() {
+    let schema_json = r#"
         {
             "type": "object",
             "properties": {
@@ -628,12 +612,11 @@ mod tests {
         }
         "#;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("NewBook".to_string(), ReferenceOr::Item(schema));
+    let type_interface = schema_to_typescript("NewBook".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type NewBook = {
+    let expected = r##"export type NewBook = {
   title: string;
   author: string;
   genres?: string[];
@@ -641,12 +624,12 @@ mod tests {
   rating?: number;
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_nullable_properties() {
-        let schema_json = r#"
+  #[test]
+  fn test_object_with_nullable_properties() {
+    let schema_json = r#"
         {
             "type": "object",
             "properties": {
@@ -675,24 +658,23 @@ mod tests {
         }
         "#;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("Review".to_string(), ReferenceOr::Item(schema));
+    let type_interface = schema_to_typescript("Review".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type Review = {
+    let expected = r##"export type Review = {
   reviewer?: string;
   comment?: string | null;
   rating?: number | null;
   date?: string | null;
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_string_enum() {
-        let schema_json = r#"
+  #[test]
+  fn test_object_with_string_enum() {
+    let schema_json = r#"
         {
             "type": "object",
             "properties": {
@@ -747,12 +729,11 @@ mod tests {
         }
         "#;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("Post".to_string(), ReferenceOr::Item(schema));
+    let type_interface = schema_to_typescript("Post".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type Post = {
+    let expected = r##"export type Post = {
   id: string;
   status: "draft" | "published" | "archived";
   visibility?: "public" | "private" | null;
@@ -763,12 +744,12 @@ mod tests {
   isActive?: true | false;
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_number_enum() {
-        let schema_json = r#"
+  #[test]
+  fn test_object_with_number_enum() {
+    let schema_json = r#"
         {
             "type": "object", 
             "properties": {
@@ -823,12 +804,11 @@ mod tests {
         }
         "#;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("Task".to_string(), ReferenceOr::Item(schema));
+    let type_interface = schema_to_typescript("Task".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type Task = {
+    let expected = r##"export type Task = {
   id: string;
   priority: 1.5 | 2.5 | 3.5;
   score?: 0.5 | 1 | null;
@@ -839,12 +819,12 @@ mod tests {
   isEnabled?: true;
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_integer_enum() {
-        let schema_json = r#"
+  #[test]
+  fn test_object_with_integer_enum() {
+    let schema_json = r#"
         {
             "type": "object",
             "properties": {
@@ -899,12 +879,11 @@ mod tests {
         }
         "#;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("Grade".to_string(), ReferenceOr::Item(schema));
+    let type_interface = schema_to_typescript("Grade".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type Grade = {
+    let expected = r##"export type Grade = {
   id: string;
   level: 1 | 2 | 3;
   grade?: 0 | 1 | null;
@@ -915,12 +894,12 @@ mod tests {
   isPublic?: false;
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_boolean_enum() {
-        let schema_json = r#"
+  #[test]
+  fn test_object_with_boolean_enum() {
+    let schema_json = r#"
         {
             "type": "object",
             "properties": {
@@ -955,12 +934,11 @@ mod tests {
         }
         "#;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("Config".to_string(), ReferenceOr::Item(schema));
+    let type_interface = schema_to_typescript("Config".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type Config = {
+    let expected = r##"export type Config = {
   id: string;
   isActive: true;
   isPublic?: false | null;
@@ -968,12 +946,12 @@ mod tests {
   settings?: (false | null)[];
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_invalid_property() {
-        let schema_json = r#"
+  #[test]
+  fn test_object_with_invalid_property() {
+    let schema_json = r#"
         {
             "type": "object",
             "properties": {
@@ -992,22 +970,21 @@ mod tests {
         }
         "#;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("InvalidObject".to_string(), ReferenceOr::Item(schema));
+    let type_interface =
+      schema_to_typescript("InvalidObject".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type InvalidObject = {
+    let expected = r##"export type InvalidObject = {
   invalid_property?: any;
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_mixed_enums_oneof() {
-        let schema_json = r##"
+  #[test]
+  fn test_object_with_mixed_enums_oneof() {
+    let schema_json = r##"
         {
             "type": "object",
             "properties": {
@@ -1073,24 +1050,22 @@ mod tests {
         }
         "##;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("MixedEnum".to_string(), ReferenceOr::Item(schema));
+    let type_interface = schema_to_typescript("MixedEnum".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type MixedEnum = {
+    let expected = r##"export type MixedEnum = {
   id: string;
   value: "low" | "medium" | "high" | 0 | 1 | 2 | 0.5 | 1.5 | 2.5 | ("A" | "B" | "C")[] | true | false | ExternalRef;
   mixedArray: ("red" | "green" | "blue" | 1 | 2 | 3 | true | "small" | "medium" | "large" | ExternalRef)[];
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_mixed_enums_anyof() {
-        let schema_json = r##"
+  #[test]
+  fn test_object_with_mixed_enums_anyof() {
+    let schema_json = r##"
         {
             "type": "object",
             "properties": {
@@ -1156,24 +1131,22 @@ mod tests {
         }
         "##;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("MixedEnum".to_string(), ReferenceOr::Item(schema));
+    let type_interface = schema_to_typescript("MixedEnum".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type MixedEnum = {
+    let expected = r##"export type MixedEnum = {
   id: string;
   value: "low" | "medium" | "high" | 0 | 1 | 2 | 0.5 | 1.5 | 2.5 | ("A" | "B" | "C")[] | true | false | ExternalRef;
   mixedArray: ("red" | "green" | "blue" | 1 | 2 | 3 | true | "small" | "medium" | "large" | ExternalRef)[];
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_mixed_enums_allof() {
-        let schema_json = r##"
+  #[test]
+  fn test_object_with_mixed_enums_allof() {
+    let schema_json = r##"
         {
             "type": "object",
             "properties": {
@@ -1217,13 +1190,12 @@ mod tests {
         }
         "##;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("MixedEnumAllOf".to_string(), ReferenceOr::Item(schema));
+    let type_interface =
+      schema_to_typescript("MixedEnumAllOf".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type MixedEnumAllOf = {
+    let expected = r##"export type MixedEnumAllOf = {
   id: string;
   value: {
     status?: "active" | "inactive";
@@ -1234,12 +1206,12 @@ mod tests {
   } & ExternalRef;
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_oneof() {
-        let schema_json = r##"
+  #[test]
+  fn test_object_with_oneof() {
+    let schema_json = r##"
         {
             "oneOf": [
                 { "$ref": "#/components/schemas/Book" },
@@ -1255,24 +1227,23 @@ mod tests {
         }
         "##;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("SearchCriteria".to_string(), ReferenceOr::Item(schema));
+    let type_interface =
+      schema_to_typescript("SearchCriteria".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type SearchCriteria = Book | {
+    let expected = r##"export type SearchCriteria = Book | {
   query?: string;
   genres?: string[];
   rating?: number;
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_allof() {
-        let schema_json = r##"
+  #[test]
+  fn test_object_with_allof() {
+    let schema_json = r##"
         {
             "allOf": [
                 { "$ref": "#/components/schemas/Book" },
@@ -1288,24 +1259,23 @@ mod tests {
         }
         "##;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("BookWithMetadata".to_string(), ReferenceOr::Item(schema));
+    let type_interface =
+      schema_to_typescript("BookWithMetadata".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type BookWithMetadata = Book & {
+    let expected = r##"export type BookWithMetadata = Book & {
   query?: string;
   genres?: string[];
   rating?: number;
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_anyof() {
-        let schema_json = r##"
+  #[test]
+  fn test_object_with_anyof() {
+    let schema_json = r##"
         {
             "anyOf": [
                 {
@@ -1331,13 +1301,11 @@ mod tests {
         }
         "##;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("UserInfo".to_string(), ReferenceOr::Item(schema));
+    let type_interface = schema_to_typescript("UserInfo".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type UserInfo = {
+    let expected = r##"export type UserInfo = {
   name: string;
   age?: number;
 } | {
@@ -1345,12 +1313,12 @@ mod tests {
   role: "admin" | "user";
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_array_with_oneof() {
-        let schema_json = r##"
+  #[test]
+  fn test_array_with_oneof() {
+    let schema_json = r##"
         {
             "type": "array",
             "items": {
@@ -1370,23 +1338,21 @@ mod tests {
         }
         "##;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("MixedArray".to_string(), ReferenceOr::Item(schema));
+    let type_interface = schema_to_typescript("MixedArray".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type MixedArray = (string | number | {
+    let expected = r##"export type MixedArray = (string | number | {
   name: string;
   value: number;
 })[];"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_array_with_allof() {
-        let schema_json = r##"
+  #[test]
+  fn test_array_with_allof() {
+    let schema_json = r##"
         {
             "type": "array",
             "items": {
@@ -1415,13 +1381,12 @@ mod tests {
         }
         "##;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("CombinedArray".to_string(), ReferenceOr::Item(schema));
+    let type_interface =
+      schema_to_typescript("CombinedArray".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type CombinedArray = ({
+    let expected = r##"export type CombinedArray = ({
   id: string;
   name?: string;
 } & {
@@ -1431,12 +1396,12 @@ mod tests {
   };
 })[];"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_array_with_anyof() {
-        let schema_json = r##"
+  #[test]
+  fn test_array_with_anyof() {
+    let schema_json = r##"
         {
             "type": "array",
             "items": {
@@ -1456,23 +1421,22 @@ mod tests {
         }
         "##;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("MixedAnyArray".to_string(), ReferenceOr::Item(schema));
+    let type_interface =
+      schema_to_typescript("MixedAnyArray".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type MixedAnyArray = (string | number | {
+    let expected = r##"export type MixedAnyArray = (string | number | {
   name: string;
   value: number;
 })[];"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_anyof_array_primitive_object() {
-        let schema_json = r##"
+  #[test]
+  fn test_object_with_anyof_array_primitive_object() {
+    let schema_json = r##"
         {
             "type": "object", 
             "properties": {
@@ -1517,13 +1481,11 @@ mod tests {
         }
         "##;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("MixedValue".to_string(), ReferenceOr::Item(schema));
+    let type_interface = schema_to_typescript("MixedValue".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type MixedValue = {
+    let expected = r##"export type MixedValue = {
   key: string;
   value: number[] | string | {
     name: string;
@@ -1531,12 +1493,12 @@ mod tests {
   }[] | SomeType[];
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_oneof_array_primitive_object() {
-        let schema_json = r##"
+  #[test]
+  fn test_object_with_oneof_array_primitive_object() {
+    let schema_json = r##"
         {
             "type": "object", 
             "properties": {
@@ -1581,13 +1543,11 @@ mod tests {
         }
         "##;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("MixedValue".to_string(), ReferenceOr::Item(schema));
+    let type_interface = schema_to_typescript("MixedValue".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type MixedValue = {
+    let expected = r##"export type MixedValue = {
   key: string;
   value: number[] | string | {
     name: string;
@@ -1595,12 +1555,12 @@ mod tests {
   }[] | SomeType[];
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_nested_objects() {
-        let schema_json = r#"
+  #[test]
+  fn test_object_with_nested_objects() {
+    let schema_json = r#"
         {
             "type": "object",
             "properties": {
@@ -1628,13 +1588,11 @@ mod tests {
         }
         "#;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("Location".to_string(), ReferenceOr::Item(schema));
+    let type_interface = schema_to_typescript("Location".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type Location = {
+    let expected = r##"export type Location = {
   id: string;
   name: string;
   address: {
@@ -1648,12 +1606,12 @@ mod tests {
   };
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_nested_arrays() {
-        let schema_json = r#"
+  #[test]
+  fn test_object_with_nested_arrays() {
+    let schema_json = r#"
         {
             "type": "object",
             "properties": {
@@ -1677,12 +1635,11 @@ mod tests {
         }
         "#;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface = schema_to_typescript("Product".to_string(), ReferenceOr::Item(schema));
+    let type_interface = schema_to_typescript("Product".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type Product = {
+    let expected = r##"export type Product = {
   id: string;
   categories?: {
     name: string;
@@ -1690,12 +1647,12 @@ mod tests {
   }[];
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_complex_nested_arrays() {
-        let schema_json = r#"
+  #[test]
+  fn test_object_with_complex_nested_arrays() {
+    let schema_json = r#"
         {
             "type": "object",
             "properties": {
@@ -1755,13 +1712,12 @@ mod tests {
         }
         "#;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("Organization".to_string(), ReferenceOr::Item(schema));
+    let type_interface =
+      schema_to_typescript("Organization".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type Organization = {
+    let expected = r##"export type Organization = {
   id: string;
   departments: {
     name: string;
@@ -1781,12 +1737,12 @@ mod tests {
   }[];
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_nested_object_with_array_oneof() {
-        let schema_json = r#"
+  #[test]
+  fn test_nested_object_with_array_oneof() {
+    let schema_json = r#"
           {
               "type": "object",
               "properties": {
@@ -1827,13 +1783,11 @@ mod tests {
           }
           "#;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("DeepArray".to_string(), ReferenceOr::Item(schema));
+    let type_interface = schema_to_typescript("DeepArray".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type DeepArray = {
+    let expected = r##"export type DeepArray = {
   id: string;
   metadata: {
     title: string;
@@ -1848,12 +1802,12 @@ mod tests {
   };
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_nested_object_with_array_allof() {
-        let schema_json = r#"
+  #[test]
+  fn test_nested_object_with_array_allof() {
+    let schema_json = r#"
           {
               "type": "object",
               "properties": {
@@ -1897,13 +1851,12 @@ mod tests {
           }
           "#;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("DeepArrayAllOf".to_string(), ReferenceOr::Item(schema));
+    let type_interface =
+      schema_to_typescript("DeepArrayAllOf".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type DeepArrayAllOf = {
+    let expected = r##"export type DeepArrayAllOf = {
   id: string;
   metadata: {
     title: string;
@@ -1919,12 +1872,12 @@ mod tests {
   };
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_nested_object_with_array_anyof() {
-        let schema_json = r#"
+  #[test]
+  fn test_nested_object_with_array_anyof() {
+    let schema_json = r#"
           {
               "type": "object",
               "properties": {
@@ -1965,13 +1918,12 @@ mod tests {
           }
           "#;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("DeepArrayAny".to_string(), ReferenceOr::Item(schema));
+    let type_interface =
+      schema_to_typescript("DeepArrayAny".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type DeepArrayAny = {
+    let expected = r##"export type DeepArrayAny = {
   id: string;
   metadata: {
     title: string;
@@ -1986,12 +1938,12 @@ mod tests {
   };
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 
-    #[test]
-    fn test_object_with_deep_array_refs() {
-        let schema_json = r##"
+  #[test]
+  fn test_object_with_deep_array_refs() {
+    let schema_json = r##"
         {
             "type": "object",
             "properties": {
@@ -2012,13 +1964,12 @@ mod tests {
         }
         "##;
 
-        let schema: Schema =
-            serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-        let type_interface =
-            schema_to_typescript("DeepRefArray".to_string(), ReferenceOr::Item(schema));
+    let type_interface =
+      schema_to_typescript("DeepRefArray".to_string(), ReferenceOr::Item(schema));
 
-        let expected = r##"export type DeepRefArray = {
+    let expected = r##"export type DeepRefArray = {
   id: string;
   data: {
     name: string;
@@ -2026,6 +1977,6 @@ mod tests {
   };
 };"##;
 
-        assert_eq!(type_interface.to_string(), expected.to_string());
-    }
+    assert_eq!(type_interface.to_string(), expected.to_string());
+  }
 }
