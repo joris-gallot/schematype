@@ -34,10 +34,10 @@ console.log(tsType);
 
 **Output:**
 ```ts
-interface User {
+type User = {
   id: string;
   age?: number;
-}
+};
 ```
 
 ## Supported Features
