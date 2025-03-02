@@ -27,7 +27,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Clippy
+        run: cargo clippy --verbose -- -D warnings
+
+  audit:
+    if: ${{ github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -35,12 +43,19 @@ jobs:
         run: cargo install cargo-audit
       - name: Audit
         run: cargo audit
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
       - name: Test
         run: cargo test --verbose
-      - name: Clippy
-        run: cargo clippy --verbose -- -D warnings
+
   build:
-    needs: test
+    needs:
+      - clippy
+      - test
+      - audit
     if: ${{ github.event.pull_request.draft == false }}
     strategy:
       fail-fast: false
@@ -154,7 +169,10 @@ jobs:
             index.js
           if-no-files-found: error
   build-freebsd:
-    needs: test
+    needs:
+      - clippy
+      - test
+      - audit
     if: ${{ github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     name: Build FreeBSD
