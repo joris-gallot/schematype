@@ -1,5 +1,4 @@
 use openapiv3::OpenAPI;
-use serde_json;
 
 mod json_schema_to_typescript;
 mod open_api_to_typescript;

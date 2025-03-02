@@ -106,7 +106,9 @@ impl fmt::Display for OpenApiClient {
 struct OpenApiPath {
   path: String,
   method: OpenApiMethod,
+  #[allow(dead_code)] // TODO: remove this
   summary: Option<String>,
+  #[allow(dead_code)] // TODO: remove this
   description: Option<String>,
   // parameters: Vec<OpenApiParameter>,
   request_body: Option<ReferenceOr<Schema>>,
@@ -115,7 +117,9 @@ struct OpenApiPath {
 
 #[derive(Debug)]
 struct OpenApiResponse {
+  #[allow(dead_code)] // TODO: remove this
   status_code: StatusCode,
+  #[allow(dead_code)] // TODO: remove this
   description: String,
   schema: ReferenceOr<Schema>,
 }
