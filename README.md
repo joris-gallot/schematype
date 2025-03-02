@@ -50,7 +50,6 @@ type User = {
 - `null`
 - `array`
 - `object`
-- `null`
 
 ### Composition
 - `anyOf` - Converted to TypeScript union types (`|`)
