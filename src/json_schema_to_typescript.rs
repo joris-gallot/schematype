@@ -331,9 +331,9 @@ where
   Expression {
     types: vec![ObjectOrPrimitiveOrRef::PrimitiveProperty(
       PrimitiveProperty {
-        primitive_type: primitive_type,
-        enumeration: enumeration,
-        is_array: is_array,
+        primitive_type,
+        enumeration,
+        is_array,
       },
     )],
     link: None,
@@ -341,16 +341,16 @@ where
 }
 
 fn schema_to_typescript_any_one_all_of_types(
-  schema: &Vec<ReferenceOr<Schema>>,
+  schema: &[ReferenceOr<Schema>],
   is_array: bool,
   separator: Option<UnionOrIntersection>,
 ) -> Vec<ObjectOrPrimitiveOrRef> {
   schema
     .iter()
-    .map(|any_of_item| schema_to_typescript_expressions(any_of_item, is_array, separator.clone()))
-    .flatten()
-    .map(|expression| expression.types)
-    .flatten()
+    .flat_map(|any_of_item| {
+      schema_to_typescript_expressions(any_of_item, is_array, separator.clone())
+    })
+    .flat_map(|expression| expression.types)
     .collect()
 }
 
@@ -435,7 +435,7 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
           vec![Expression {
             types: vec![ObjectOrPrimitiveOrRef::TypeObject(TypeObject {
               properties,
-              is_array: is_array,
+              is_array,
             })],
             link: None,
           }]
@@ -462,7 +462,7 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
               PrimitiveProperty {
                 primitive_type: PrimitiveType::Any,
                 enumeration: vec![],
-                is_array: is_array,
+                is_array,
               },
             )],
             link: None,
@@ -480,7 +480,7 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
                 PrimitiveProperty {
                   primitive_type: PrimitiveType::Null,
                   enumeration: vec![],
-                  is_array: is_array,
+                  is_array,
                 },
               ));
             expression
@@ -492,20 +492,20 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
     }
     ReferenceOr::Reference { reference } => {
       let reference_name = reference.split('/').last().unwrap_or_default().to_string();
-      return vec![Expression {
+      vec![Expression {
         types: vec![ObjectOrPrimitiveOrRef::RefProperty(RefProperty {
           reference: reference_name,
-          is_array: is_array,
+          is_array,
         })],
         link: separator,
-      }];
+      }]
     }
   }
 }
 
 pub fn schema_to_typescript(name: String, schema: ReferenceOr<Schema>) -> TypeInterface {
   TypeInterface {
-    name: name,
+    name,
     expressions: schema_to_typescript_expressions(&schema, false, None),
   }
 }
