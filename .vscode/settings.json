@@ -1,5 +1,6 @@
 {
   "editor.tabSize": 2,
+  "rust-analyzer.check.command": "clippy",
 
   // Disable the default formatter, use eslint instead
   "prettier.enable": false,

@@ -1,6 +1,7 @@
 use openapiv3::{
   BooleanType, IntegerType, NumberType, ReferenceOr, Schema, SchemaKind, StringType, Type,
 };
+use std::fmt;
 
 #[derive(Debug, Clone)]
 enum ObjectOrPrimitiveOrRef {
@@ -105,36 +106,31 @@ impl TypeInterface {
           .unwrap_or(primitive_str)
       }
     } else {
-      let enum_string = format!(
-        "{}",
-        primitive
-          .enumeration
-          .iter()
-          .map(|s| {
-            if matches!(primitive.primitive_type, PrimitiveType::String) {
-              format!("\"{}\"", s)
-            } else {
-              s.to_string()
-            }
-          })
-          .collect::<Vec<String>>()
-          .join(TypeInterface::get_separator(&Some(
-            UnionOrIntersection::Union
-          )))
-      );
+      let enum_string = primitive
+        .enumeration
+        .iter()
+        .map(|s| {
+          if matches!(primitive.primitive_type, PrimitiveType::String) {
+            format!("\"{}\"", s)
+          } else {
+            s.to_string()
+          }
+        })
+        .collect::<Vec<String>>()
+        .join(TypeInterface::get_separator(&Some(
+          UnionOrIntersection::Union,
+        )));
 
       if is_in_expression_array {
         enum_string
-      } else {
-        if primitive.is_array {
-          if primitive.enumeration.len() > 1 {
-            format!("({})[]", enum_string)
-          } else {
-            format!("{}[]", enum_string)
-          }
+      } else if primitive.is_array {
+        if primitive.enumeration.len() > 1 {
+          format!("({})[]", enum_string)
         } else {
-          enum_string
+          format!("{}[]", enum_string)
         }
+      } else {
+        enum_string
       }
     }
   }
@@ -236,10 +232,12 @@ impl TypeInterface {
       }
     }
   }
+}
 
-  pub fn to_string(&self) -> String {
+impl fmt::Display for TypeInterface {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     if self.expressions.is_empty() {
-      return String::new();
+      return write!(f, "{}", String::new());
     }
 
     let types = self
@@ -258,7 +256,8 @@ impl TypeInterface {
       })
       .collect::<Vec<String>>();
 
-    format!(
+    write!(
+      f,
       "export type {} = {};",
       self.name,
       types.join(TypeInterface::get_separator(&Some(
