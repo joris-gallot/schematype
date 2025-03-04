@@ -6,6 +6,7 @@ use std::fmt;
 #[derive(Debug, Default)]
 pub struct SchemaTypeConfig {
   prefer_unknown_over_any: bool,
+  prefer_interface_over_type: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -298,10 +299,22 @@ impl fmt::Display for TypeInterface {
       })
       .collect::<Vec<String>>();
 
+    let is_single_type_object = self.expressions.len() == 1
+      && matches!(
+        self.expressions[0].types[0],
+        ObjectOrPrimitiveOrRef::TypeObject(_)
+      );
+
+    let export_type = if self.config.prefer_interface_over_type && is_single_type_object {
+      format!("export interface {}", self.name)
+    } else {
+      format!("export type {} =", self.name)
+    };
+
     write!(
       f,
-      "export type {} = {};",
-      self.name,
+      "{} {};",
+      export_type,
       types.join(TypeInterface::get_separator(&Some(
         UnionOrIntersection::Union
       )))
@@ -2344,7 +2357,6 @@ mod tests {
 
     assert_eq!(type_interface.to_string(), expected.to_string());
   }
-
   #[test]
   fn test_schema_with_unknown_types() {
     let schema_json = r##"
@@ -2374,6 +2386,7 @@ mod tests {
 
     let config = Some(SchemaTypeConfig {
       prefer_unknown_over_any: true,
+      prefer_interface_over_type: false,
     });
 
     let type_interface_unknown = schema_to_typescript(
@@ -2395,5 +2408,105 @@ mod tests {
       type_interface_unknown.to_string(),
       expected_unknown.to_string()
     );
+  }
+
+  #[test]
+  fn test_prefer_interface_simple_object() {
+    let schema_json = r##"
+        {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "age": {"type": "number"}
+            }
+        }
+        "##;
+
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let config = Some(SchemaTypeConfig {
+      prefer_unknown_over_any: false,
+      prefer_interface_over_type: true,
+    });
+
+    let interface = schema_to_typescript("Person".to_string(), ReferenceOr::Item(schema), config);
+
+    let expected = r##"export interface Person {
+  name?: string;
+  age?: number;
+};"##;
+
+    assert_eq!(interface.to_string(), expected.to_string());
+  }
+
+  #[test]
+  fn test_prefer_interface_union_type() {
+    let schema_json = r##"
+        {
+            "oneOf": [
+                {"type": "string"},
+                {"type": "number"}
+            ]
+        }
+        "##;
+
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let config = Some(SchemaTypeConfig {
+      prefer_unknown_over_any: false,
+      prefer_interface_over_type: true,
+    });
+
+    let type_def = schema_to_typescript("UnionType".to_string(), ReferenceOr::Item(schema), config);
+
+    // Should still use type for unions even with prefer_interface_over_type
+    let expected = r##"export type UnionType = string | number;"##;
+
+    assert_eq!(type_def.to_string(), expected.to_string());
+  }
+
+  #[test]
+  fn test_prefer_interface_nested_object() {
+    let schema_json = r##"
+        {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string"},
+                "user": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "settings": {
+                            "type": "object",
+                            "properties": {
+                                "theme": {"type": "string"},
+                                "notifications": {"type": "boolean"}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        "##;
+
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
+    let config = Some(SchemaTypeConfig {
+      prefer_unknown_over_any: false,
+      prefer_interface_over_type: true,
+    });
+
+    let interface =
+      schema_to_typescript("UserConfig".to_string(), ReferenceOr::Item(schema), config);
+
+    let expected = r##"export interface UserConfig {
+  id?: string;
+  user?: {
+    name?: string;
+    settings?: {
+      theme?: string;
+      notifications?: boolean;
+    };
+  };
+};"##;
+
+    assert_eq!(interface.to_string(), expected.to_string());
   }
 }
