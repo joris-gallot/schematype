@@ -59,6 +59,7 @@ impl fmt::Display for OpenApiClient {
             Some(crate::json_schema_to_typescript::schema_to_typescript(
               request_interface_name,
               request_body.clone(),
+              None,
             ))
           }
           None => None,
@@ -75,6 +76,7 @@ impl fmt::Display for OpenApiClient {
             let interface = crate::json_schema_to_typescript::schema_to_typescript(
               interface_name,
               response.schema.clone(),
+              None,
             );
 
             interface.to_string()
