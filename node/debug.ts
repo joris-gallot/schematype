@@ -1,45 +1,19 @@
 /* eslint-disable no-console */
-import { schemaToType } from '../index.js'
+import { schemaToType } from "../index.js";
 
 const schema = {
-  type: 'object',
+  type: "object",
   properties: {
-    id: { type: 'string' },
-    metadata: {
-      type: 'object',
-      properties: {
-        title: { type: 'string' },
-        tags: {
-          type: 'array',
-          items: {
-            anyOf: [
-              { type: 'string' },
-              {
-                type: 'object',
-                properties: {
-                  name: { type: 'string' },
-                  value: { type: 'number' },
-                  metadata: {
-                    type: 'object',
-                    properties: {
-                      description: { type: 'string' },
-                      priority: { type: 'number' },
-                    },
-                    required: ['description'],
-                  },
-                },
-                required: ['name', 'value'],
-              },
-            ],
-          },
-        },
-      },
-      required: ['title', 'tags'],
-    },
+    id: { type: "string" },
+    age: { type: "number" }
   },
-  required: ['id', 'metadata'],
+  required: ["id"]
+};
+
+const options = {
+  preferInterfaceOverType: true,
+  preferUnknownOverAny: false
 }
 
-const result = schemaToType('MySchema', schema)
-
-console.log(result)
+const tsType = schemaToType("User", schema, options);
+console.log(tsType);

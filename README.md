@@ -28,13 +28,18 @@ const schema = {
   required: ["id"]
 };
 
-const tsType = schemaToType("User", schema);
+const options = {
+  preferInterfaceOverType: true,
+  preferUnknownOverAny: false
+}
+
+const tsType = schemaToType("User", schema, options);
 console.log(tsType);
 ```
 
 **Output:**
 ```ts
-type User = {
+export interface User {
   id: string;
   age?: number;
 };
@@ -44,7 +49,7 @@ type User = {
 
 ```ts
 {
-  preferUnknownOverAny: boolean // default to false
+  preferUnknownOverAny: boolean    // default to false
   preferInterfaceOverType: boolean // default to false
 }
 ```
