@@ -32,12 +32,12 @@ test('prefer interface over type for simple object', (t) => {
     }
   }
 
-  const config = {
+  const options = {
     preferUnknownOverAny: false,
     preferInterfaceOverType: true
   }
 
-  const result = schemaToType('Person', schema, config)
+  const result = schemaToType('Person', schema, options)
   t.snapshot(result)
 })
 
@@ -63,11 +63,11 @@ test('schema with unknown types', (t) => {
     required: ['id']
   }
 
-  const config = {
+  const options = {
     preferUnknownOverAny: true,
     preferInterfaceOverType: false
   }
 
-  const result = schemaToType('SchemaWithUnknown', schema, config)
+  const result = schemaToType('SchemaWithUnknown', schema, options)
   t.snapshot(result)
 })

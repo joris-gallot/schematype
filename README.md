@@ -40,7 +40,7 @@ type User = {
 };
 ```
 
-### Config
+### Options
 
 ```ts
 {

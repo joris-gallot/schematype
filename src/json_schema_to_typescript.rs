@@ -6,7 +6,7 @@ use std::fmt;
 
 #[derive(Debug, Default)]
 #[napi(object)]
-pub struct SchemaTypeConfig {
+pub struct SchemaTypeOptions {
   pub prefer_unknown_over_any: bool,
   pub prefer_interface_over_type: bool,
 }
@@ -27,7 +27,7 @@ enum UnionOrIntersection {
 #[derive(Debug)]
 pub struct TypeInterface {
   name: String,
-  config: SchemaTypeConfig,
+  options: SchemaTypeOptions,
   expressions: Vec<Expression>,
 }
 
@@ -96,7 +96,7 @@ impl TypeInterface {
 
   fn primitive_to_ts_string(
     primitive_type: &PrimitiveType,
-    config: &SchemaTypeConfig,
+    options: &SchemaTypeOptions,
   ) -> &'static str {
     match primitive_type {
       PrimitiveType::String => "string",
@@ -104,7 +104,7 @@ impl TypeInterface {
       PrimitiveType::Boolean => "boolean",
       PrimitiveType::Null => "null",
       PrimitiveType::Any => {
-        if config.prefer_unknown_over_any {
+        if options.prefer_unknown_over_any {
           "unknown"
         } else {
           "any"
@@ -116,9 +116,9 @@ impl TypeInterface {
   fn primitive_to_string(
     primitive: &PrimitiveProperty,
     is_in_expression_array: bool,
-    config: &SchemaTypeConfig,
+    options: &SchemaTypeOptions,
   ) -> String {
-    let primitive_str = TypeInterface::primitive_to_ts_string(&primitive.primitive_type, config);
+    let primitive_str = TypeInterface::primitive_to_ts_string(&primitive.primitive_type, options);
 
     if primitive.enumeration.is_empty() {
       if is_in_expression_array {
@@ -182,7 +182,7 @@ impl TypeInterface {
     object: &ObjectOrPrimitiveOrRef,
     depth: usize,
     expression_is_array: bool,
-    config: &SchemaTypeConfig,
+    options: &SchemaTypeOptions,
   ) -> String {
     match object {
       ObjectOrPrimitiveOrRef::TypeObject(type_object) => {
@@ -209,11 +209,11 @@ impl TypeInterface {
                         &ObjectOrPrimitiveOrRef::TypeObject(obj.clone()),
                         depth + 1,
                         expression_is_array,
-                        config,
+                        options,
                       )
                     }
                     ObjectOrPrimitiveOrRef::PrimitiveProperty(primitive) => {
-                      TypeInterface::primitive_to_string(primitive, expression_is_array, config)
+                      TypeInterface::primitive_to_string(primitive, expression_is_array, options)
                     }
                     ObjectOrPrimitiveOrRef::RefProperty(reference) => {
                       TypeInterface::reference_to_string(reference, expression_is_array)
@@ -270,7 +270,7 @@ impl TypeInterface {
         )
       }
       ObjectOrPrimitiveOrRef::PrimitiveProperty(primitive) => {
-        TypeInterface::primitive_to_string(primitive, expression_is_array, config)
+        TypeInterface::primitive_to_string(primitive, expression_is_array, options)
       }
       ObjectOrPrimitiveOrRef::RefProperty(reference) => {
         TypeInterface::reference_to_string(reference, expression_is_array)
@@ -293,7 +293,7 @@ impl fmt::Display for TypeInterface {
         let exp_string = expression
           .types
           .iter()
-          .map(|t| TypeInterface::type_object_to_string(t, 1, expression_is_array, &self.config))
+          .map(|t| TypeInterface::type_object_to_string(t, 1, expression_is_array, &self.options))
           .collect::<Vec<String>>()
           .join(TypeInterface::get_separator(&expression.link));
 
@@ -307,7 +307,7 @@ impl fmt::Display for TypeInterface {
         ObjectOrPrimitiveOrRef::TypeObject(_)
       );
 
-    let export_type = if self.config.prefer_interface_over_type && is_single_type_object {
+    let export_type = if self.options.prefer_interface_over_type && is_single_type_object {
       format!("export interface {}", self.name)
     } else {
       format!("export type {} =", self.name)
@@ -577,11 +577,11 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
 pub fn schema_to_typescript(
   name: String,
   schema: ReferenceOr<Schema>,
-  config: Option<SchemaTypeConfig>,
+  options: Option<SchemaTypeOptions>,
 ) -> TypeInterface {
   TypeInterface {
     name,
-    config: config.unwrap_or_default(),
+    options: options.unwrap_or_default(),
     expressions: schema_to_typescript_expressions(&schema, false, None),
   }
 }
@@ -2341,7 +2341,7 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    // Test with default config (prefer_unknown_over_any = false)
+    // Test with default options (prefer_unknown_over_any = false)
     let type_interface = schema_to_typescript(
       "SchemaWithAny".to_string(),
       ReferenceOr::Item(schema.clone()),
@@ -2386,7 +2386,7 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let config = Some(SchemaTypeConfig {
+    let options = Some(SchemaTypeOptions {
       prefer_unknown_over_any: true,
       prefer_interface_over_type: false,
     });
@@ -2394,7 +2394,7 @@ mod tests {
     let type_interface_unknown = schema_to_typescript(
       "SchemaWithUnknown".to_string(),
       ReferenceOr::Item(schema.clone()),
-      config,
+      options,
     );
 
     let expected_unknown = r##"export type SchemaWithUnknown = {
@@ -2425,12 +2425,12 @@ mod tests {
         "##;
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
-    let config = Some(SchemaTypeConfig {
+    let options = Some(SchemaTypeOptions {
       prefer_unknown_over_any: false,
       prefer_interface_over_type: true,
     });
 
-    let interface = schema_to_typescript("Person".to_string(), ReferenceOr::Item(schema), config);
+    let interface = schema_to_typescript("Person".to_string(), ReferenceOr::Item(schema), options);
 
     let expected = r##"export interface Person {
   name?: string;
@@ -2452,12 +2452,13 @@ mod tests {
         "##;
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
-    let config = Some(SchemaTypeConfig {
+    let options = Some(SchemaTypeOptions {
       prefer_unknown_over_any: false,
       prefer_interface_over_type: true,
     });
 
-    let type_def = schema_to_typescript("UnionType".to_string(), ReferenceOr::Item(schema), config);
+    let type_def =
+      schema_to_typescript("UnionType".to_string(), ReferenceOr::Item(schema), options);
 
     // Should still use type for unions even with prefer_interface_over_type
     let expected = r##"export type UnionType = string | number;"##;
@@ -2490,13 +2491,13 @@ mod tests {
         "##;
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
-    let config = Some(SchemaTypeConfig {
+    let options = Some(SchemaTypeOptions {
       prefer_unknown_over_any: false,
       prefer_interface_over_type: true,
     });
 
     let interface =
-      schema_to_typescript("UserConfig".to_string(), ReferenceOr::Item(schema), config);
+      schema_to_typescript("UserConfig".to_string(), ReferenceOr::Item(schema), options);
 
     let expected = r##"export interface UserConfig {
   id?: string;
