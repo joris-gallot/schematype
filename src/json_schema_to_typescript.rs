@@ -1,12 +1,14 @@
+use napi_derive::napi;
 use openapiv3::{
   BooleanType, IntegerType, NumberType, ReferenceOr, Schema, SchemaKind, StringType, Type,
 };
 use std::fmt;
 
 #[derive(Debug, Default)]
+#[napi(object)]
 pub struct SchemaTypeConfig {
-  prefer_unknown_over_any: bool,
-  prefer_interface_over_type: bool,
+  pub prefer_unknown_over_any: bool,
+  pub prefer_interface_over_type: bool,
 }
 
 #[derive(Debug, Clone)]

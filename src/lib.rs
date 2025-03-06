@@ -3,10 +3,16 @@ use napi::{Env, JsObject, JsString};
 use napi_derive::napi;
 use openapiv3::Schema;
 mod json_schema_to_typescript;
+use json_schema_to_typescript::SchemaTypeConfig;
 use serde_json::Value;
 
 #[napi]
-pub fn schema_to_typescript(env: Env, name: String, schema_input: JsObject) -> Result<String> {
+pub fn schema_to_typescript(
+  env: Env,
+  name: String,
+  schema_input: JsObject,
+  config: Option<SchemaTypeConfig>,
+) -> Result<String> {
   let schema_json = js_object_to_serde_value(env, schema_input)?;
 
   let schema: Schema = serde_json::from_value(schema_json)
@@ -15,7 +21,7 @@ pub fn schema_to_typescript(env: Env, name: String, schema_input: JsObject) -> R
   let interface = json_schema_to_typescript::schema_to_typescript(
     name,
     openapiv3::ReferenceOr::Item(schema),
-    None,
+    config,
   );
 
   Ok(interface.to_string())

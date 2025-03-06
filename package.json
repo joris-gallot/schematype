@@ -53,8 +53,6 @@
   "scripts": {
     "debug": "vite-node node/debug.ts",
     "test": "ava",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
     "build": "napi build --platform --release",
     "build:debug": "napi build --platform",
     "prepublishOnly": "napi prepublish -t npm",
@@ -63,10 +61,8 @@
     "artifacts": "napi artifacts"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^4.3.0",
     "@napi-rs/cli": "^2.18.4",
     "ava": "^6.2.0",
-    "eslint": "^9.20.1",
     "vite-node": "^3.0.6"
   }
 }
