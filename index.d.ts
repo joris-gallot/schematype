@@ -7,4 +7,4 @@ export interface SchemaTypeConfig {
   preferUnknownOverAny: boolean
   preferInterfaceOverType: boolean
 }
-export declare function schemaToTypescript(name: string, schemaInput: object, config?: SchemaTypeConfig | undefined | null): string
+export declare function schemaToType(name: string, schemaInput: object, config?: SchemaTypeConfig | undefined | null): string

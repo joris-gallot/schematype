@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { schemaToTypescript } from '../index.js'
+import { schemaToType } from '../index.js'
 
 const schema = {
   type: 'object',
@@ -40,6 +40,6 @@ const schema = {
   required: ['id', 'metadata'],
 }
 
-const result = schemaToTypescript('MySchema', schema)
+const result = schemaToType('MySchema', schema)
 
 console.log(result)

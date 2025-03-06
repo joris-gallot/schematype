@@ -310,6 +310,6 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { schemaToTypescript } = nativeBinding
+const { schemaToType } = nativeBinding
 
-module.exports.schemaToTypescript = schemaToTypescript
+module.exports.schemaToType = schemaToType

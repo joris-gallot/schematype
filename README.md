@@ -17,7 +17,7 @@ This package supports **CommonJS** and **ES Modules**.
 ### **Example**
 
 ```typescript
-import { schemaToTypescript } from "@schematype/core";
+import { schemaToType } from "@schematype/core";
 
 const schema = {
   type: "object",
@@ -28,7 +28,7 @@ const schema = {
   required: ["id"]
 };
 
-const tsType = schemaToTypescript("User", schema);
+const tsType = schemaToType("User", schema);
 console.log(tsType);
 ```
 

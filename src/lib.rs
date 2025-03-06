@@ -7,7 +7,7 @@ use json_schema_to_typescript::SchemaTypeConfig;
 use serde_json::Value;
 
 #[napi]
-pub fn schema_to_typescript(
+pub fn schema_to_type(
   env: Env,
   name: String,
   schema_input: JsObject,
