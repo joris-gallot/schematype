@@ -40,6 +40,16 @@ type User = {
 };
 ```
 
+### Config
+
+```ts
+{
+  preferUnknownOverAny: boolean // default to false
+  preferInterfaceOverType: boolean // default to false
+}
+```
+
+
 ## Supported Features
 
 ### Basic Types
