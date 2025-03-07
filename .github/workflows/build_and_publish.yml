@@ -169,7 +169,7 @@ jobs:
           run: ${{ matrix.settings.build }}
       - name: Build
         run: |
-          if [ "${{ matrix.settings.host }}" == "windows-latest" ]; then
+          if [[ "${RUNNER_OS}" == "Windows" ]]; then
             pwsh -Command "${{ matrix.settings.build }}"
           else
             bash -c "${{ matrix.settings.build }}"
