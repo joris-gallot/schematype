@@ -67,16 +67,19 @@ jobs:
           - host: macos-latest
             target: x86_64-apple-darwin
             build: pnpm build --target x86_64-apple-darwin
+            shell: bash
           - host: windows-latest
             build: |-
               icacls target /grant Everyone:F /T &&
               pnpm build --target x86_64-pc-windows-msvc
             target: x86_64-pc-windows-msvc
+            shell: pwsh
           - host: windows-latest
             build: |-
               icacls target /grant Everyone:F /T &&
               pnpm build --target i686-pc-windows-msvc
             target: i686-pc-windows-msvc
+            shell: pwsh
           - host: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
@@ -84,6 +87,7 @@ jobs:
               set -e &&
               npm install -g pnpm@9.15.5 --force --ignore-scripts &&
               pnpm build --target x86_64-unknown-linux-gnu
+            shell: bash
           - host: ubuntu-latest
             target: x86_64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
@@ -91,15 +95,18 @@ jobs:
               set -e &&
               npm install -g pnpm@9.15.5 --force --ignore-scripts &&
               pnpm build --target x86_64-unknown-linux-musl
+            shell: bash
           - host: macos-latest
             target: aarch64-apple-darwin
             build: pnpm build --target aarch64-apple-darwin
+            shell: bash
           - host: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
             build: |-
               npm install -g pnpm@9.15.5 --force --ignore-scripts &&
               pnpm build --target aarch64-unknown-linux-gnu
+            shell: bash
           - host: ubuntu-latest
             target: armv7-unknown-linux-gnueabihf
             setup: |
@@ -107,6 +114,7 @@ jobs:
               sudo apt-get install gcc-arm-linux-gnueabihf -y
             build: |
               pnpm build --target armv7-unknown-linux-gnueabihf
+            shell: bash
           - host: ubuntu-latest
             target: aarch64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine-zig
@@ -115,11 +123,13 @@ jobs:
               npm install -g pnpm@9.15.5 --force --ignore-scripts &&
               rustup target add aarch64-unknown-linux-musl &&
               pnpm build --target aarch64-unknown-linux-musl
+            shell: bash
           - host: windows-latest
             target: aarch64-pc-windows-msvc
             build: |-
               icacls target /grant Everyone:F /T &&
               pnpm build --target aarch64-pc-windows-msvc
+            shell: pwsh
     name: stable - ${{ matrix.settings.target }} - node@20
     runs-on: ${{ matrix.settings.host }}
     steps:
@@ -170,7 +180,7 @@ jobs:
       - name: Build
         run: ${{ matrix.settings.build }}
         if: ${{ !matrix.settings.docker }}
-        shell: bash
+        shell: ${{ matrix.settings.shell }}
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
