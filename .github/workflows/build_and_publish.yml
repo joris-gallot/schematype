@@ -170,8 +170,12 @@ jobs:
           run: ${{ matrix.settings.build }}
       - name: Build
         run: ${{ matrix.settings.build }}
-        if: ${{ !matrix.settings.docker }}
+        if: ${{ !matrix.settings.docker && !contains(matrix.settings.host, 'windows') }}
         shell: bash
+      - name: Build on Windows
+        run: ${{ matrix.settings.build }}
+        if: ${{ !matrix.settings.docker && contains(matrix.settings.host, 'windows') }}
+        shell: pwsh
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
