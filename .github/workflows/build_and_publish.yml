@@ -69,12 +69,12 @@ jobs:
             build: pnpm build --target x86_64-apple-darwin
           - host: windows-latest
             build: |-
-              icacls target /grant Everyone:F /T &&
+              icacls "D:\a\schematype\schematype\target" /grant Everyone:F /T &&
               pnpm build --target x86_64-pc-windows-msvc
             target: x86_64-pc-windows-msvc
           - host: windows-latest
             build: |-
-              icacls target /grant Everyone:F /T &&
+              icacls "D:\a\schematype\schematype\target" /grant Everyone:F /T &&
               pnpm build --target i686-pc-windows-msvc
             target: i686-pc-windows-msvc
           - host: ubuntu-latest
@@ -118,7 +118,7 @@ jobs:
           - host: windows-latest
             target: aarch64-pc-windows-msvc
             build: |-
-              icacls target /grant Everyone:F /T &&
+              icacls "D:\a\schematype\schematype\target" /grant Everyone:F /T &&
               pnpm build --target aarch64-pc-windows-msvc
     name: stable - ${{ matrix.settings.target }} - node@20
     runs-on: ${{ matrix.settings.host }}
