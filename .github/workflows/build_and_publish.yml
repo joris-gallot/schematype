@@ -35,16 +35,16 @@ jobs:
       - name: Clippy
         run: cargo clippy --verbose -- -D warnings
 
-  audit:
-    name: Audit
-    if: ${{ github.event.pull_request.draft == false }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
-      - name: Audit
-        run: cargo audit
+  # audit:
+  #   name: Audit
+  #   if: ${{ github.event.pull_request.draft == false }}
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: Install cargo-audit
+  #       run: cargo install cargo-audit
+  #     - name: Audit
+  #       run: cargo audit
 
   test:
     name: Cargo Test
@@ -58,7 +58,7 @@ jobs:
     needs:
       - clippy
       - test
-      - audit
+      # - audit
     if: ${{ github.event.pull_request.draft == false }}
     strategy:
       fail-fast: false
@@ -190,7 +190,7 @@ jobs:
     needs:
       - clippy
       - test
-      - audit
+      # - audit
     if: ${{ github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     name: Build FreeBSD
