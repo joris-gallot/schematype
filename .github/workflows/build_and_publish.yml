@@ -168,13 +168,13 @@ jobs:
           options: '--user 0:0 -v ${{ github.workspace }}/.cargo-cache/git/db:/usr/local/cargo/git/db -v ${{ github.workspace }}/.cargo/registry/cache:/usr/local/cargo/registry/cache -v ${{ github.workspace }}/.cargo/registry/index:/usr/local/cargo/registry/index -v ${{ github.workspace }}:/build -w /build'
           run: ${{ matrix.settings.build }}
       - name: Build
-        run: |
-          if [[ "${RUNNER_OS}" == "Windows" ]]; then
-            pwsh -Command "${{ matrix.settings.build }}"
-          else
-            bash -c "${{ matrix.settings.build }}"
-          fi
-        if: ${{ !matrix.settings.docker }}
+        run: ${{ matrix.settings.build }}
+        if: ${{ !matrix.settings.docker && !contains(matrix.settings.host, 'windows') }}
+        shell: bash
+      - name: Build on Windows
+        run: ${{ matrix.settings.build }}
+        if: ${{ !matrix.settings.docker && contains(matrix.settings.host, 'windows') }}
+        shell: pwsh
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
