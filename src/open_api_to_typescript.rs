@@ -1,10 +1,12 @@
 use crate::json_schema_to_typescript::TypeInterface;
-use std::collections::HashMap;
 
 use napi_derive::napi;
 use openapiv3::{
   OpenAPI, Operation, Parameter, ParameterData, ParameterSchemaOrContent, ReferenceOr, Schema,
 };
+use serde_json::json;
+use std::collections::HashMap;
+
 #[derive(Debug)]
 pub enum OpenApiMethod {
   Get,
@@ -36,8 +38,8 @@ pub struct OpenApiPath {
   pub method: String,
   pub summary: Option<String>,
   pub description: Option<String>,
-  pub query_parameters: HashMap<String, OpenApiParameter>,
-  pub path_parameters: HashMap<String, OpenApiParameter>,
+  pub query_ts_type: Option<String>,
+  pub path_ts_type: Option<String>,
   pub request_body: Option<String>,
   pub responses: HashMap<String, OpenApiResponse>,
 }
@@ -91,25 +93,78 @@ impl OpenApiOutput {
   }
 }
 
-fn get_open_api_parameter(parameter_data: &ParameterData) -> (String, OpenApiParameter) {
-  let name = &parameter_data.name;
+fn extract_parameters(
+  parameters: &[&Parameter],
+  parameter_type: fn(&Parameter) -> Option<&ParameterData>,
+) -> (serde_json::Map<String, serde_json::Value>, Vec<String>) {
+  let props = parameters
+    .iter()
+    .filter_map(|parameter| {
+      parameter_type(parameter).and_then(|parameter_data| {
+        if let ParameterSchemaOrContent::Schema(schema) = &parameter_data.format {
+          serde_json::to_value(schema)
+            .ok()
+            .map(|schema_json| (parameter_data.name.clone(), schema_json))
+        } else {
+          None
+        }
+      })
+    })
+    .collect();
 
-  (
-    name.clone(),
-    OpenApiParameter {
-      description: parameter_data.description.clone(),
-      required: parameter_data.required,
-      ts_type: crate::json_schema_to_typescript::schema_to_typescript(
-        OpenApiOutput::capitalize_first(name),
-        match &parameter_data.format {
-          ParameterSchemaOrContent::Schema(schema) => schema.clone(),
-          ParameterSchemaOrContent::Content(_) => panic!("Content not implemented"),
-        },
+  let required = parameters
+    .iter()
+    .filter_map(|parameter| {
+      parameter_type(parameter).and_then(|parameter_data| {
+        if parameter_data.required {
+          Some(parameter_data.name.clone())
+        } else {
+          None
+        }
+      })
+    })
+    .collect();
+
+  (props, required)
+}
+
+fn generate_parameters_ts_type(
+  parameters: &[&Parameter],
+  path: &str,
+  method: &OpenApiMethod,
+  parameter_type: fn(&Parameter) -> Option<&ParameterData>,
+  suffix: &str,
+) -> Option<String> {
+  let has_parameters = parameters.iter().any(|p| parameter_type(p).is_some());
+
+  if !has_parameters {
+    return None;
+  }
+
+  let (props, required) = extract_parameters(parameters, parameter_type);
+
+  let schema_json = json!({
+      "type": "object",
+      "properties": props,
+      "required": required
+  });
+
+  if let Ok(schema) = serde_json::from_value(schema_json) {
+    Some(
+      crate::json_schema_to_typescript::schema_to_typescript(
+        format!(
+          "{}{}",
+          OpenApiOutput::get_interface_name(path, method),
+          suffix
+        ),
+        ReferenceOr::Item(schema),
         None,
       )
       .to_string(),
-    },
-  )
+    )
+  } else {
+    None
+  }
 }
 
 fn get_open_api_path(path: &str, method: OpenApiMethod, operation: &Operation) -> OpenApiPath {
@@ -146,27 +201,27 @@ fn get_open_api_path(path: &str, method: OpenApiMethod, operation: &Operation) -
     })
     .collect();
 
-  let query_parameters: HashMap<String, OpenApiParameter> = parameters
-    .iter()
-    .filter_map(|parameter| {
-      if let Parameter::Query { parameter_data, .. } = parameter {
-        Some(get_open_api_parameter(parameter_data))
-      } else {
-        None
-      }
-    })
-    .collect();
+  let query_ts_type = generate_parameters_ts_type(
+    &parameters,
+    path,
+    &method,
+    |p| match p {
+      Parameter::Query { parameter_data, .. } => Some(parameter_data),
+      _ => None,
+    },
+    "Query",
+  );
 
-  let path_parameters: HashMap<String, OpenApiParameter> = parameters
-    .iter()
-    .filter_map(|parameter| {
-      if let Parameter::Path { parameter_data, .. } = parameter {
-        Some(get_open_api_parameter(parameter_data))
-      } else {
-        None
-      }
-    })
-    .collect();
+  let path_ts_type = generate_parameters_ts_type(
+    &parameters,
+    path,
+    &method,
+    |p| match p {
+      Parameter::Path { parameter_data, .. } => Some(parameter_data),
+      _ => None,
+    },
+    "Path",
+  );
 
   let responses: HashMap<String, OpenApiResponse> = operation
     .responses
@@ -212,8 +267,8 @@ fn get_open_api_path(path: &str, method: OpenApiMethod, operation: &Operation) -
     method: OpenApiOutput::open_api_method_to_string(&method).to_string(),
     summary: operation.summary.clone(),
     description: operation.description.clone(),
-    query_parameters,
-    path_parameters,
+    query_ts_type,
+    path_ts_type,
     request_body: request_body_type.map(|request_body_type| request_body_type.to_string()),
     responses,
   }

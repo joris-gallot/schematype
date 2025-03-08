@@ -20,8 +20,8 @@ export interface OpenApiPath {
   method: string
   summary?: string
   description?: string
-  queryParameters: Record<string, OpenApiParameter>
-  pathParameters: Record<string, OpenApiParameter>
+  queryTsType?: string
+  pathTsType?: string
   requestBody?: string
   responses: Record<string, OpenApiResponse>
 }
