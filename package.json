@@ -51,7 +51,8 @@
     "workerThreads": false
   },
   "scripts": {
-    "debug": "vite-node node/debug.ts",
+    "debug:openapi": "vite-node node/playground/openapi-to-types.ts",
+    "debug:schema": "vite-node node/playground/schema-to-type.ts",
     "test": "ava",
     "build": "napi build --platform --release",
     "build:debug": "napi build --platform",

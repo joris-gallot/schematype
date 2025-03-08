@@ -310,6 +310,7 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { schemaToType } = nativeBinding
+const { openApiToTypes, schemaToType } = nativeBinding
 
+module.exports.openApiToTypes = openApiToTypes
 module.exports.schemaToType = schemaToType

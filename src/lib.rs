@@ -1,10 +1,22 @@
 use napi::bindgen_prelude::*;
 use napi::{Env, JsObject, JsString};
 use napi_derive::napi;
-use openapiv3::Schema;
+use openapiv3::{OpenAPI, Schema};
 mod json_schema_to_typescript;
+mod open_api_to_typescript;
 use json_schema_to_typescript::SchemaTypeOptions;
+use open_api_to_typescript::{open_api_to_typescript, OpenApiOutput};
 use serde_json::Value;
+
+#[napi]
+pub fn open_api_to_types(env: Env, open_api_input: JsObject) -> Result<OpenApiOutput> {
+  let open_api_json = js_object_to_serde_value(env, open_api_input)?;
+
+  let open_api: OpenAPI = serde_json::from_value(open_api_json)
+    .map_err(|e| napi::Error::new(napi::Status::InvalidArg, format!("Invalid open api: {}", e)))?;
+
+  Ok(open_api_to_typescript(open_api))
+}
 
 #[napi]
 pub fn schema_to_type(

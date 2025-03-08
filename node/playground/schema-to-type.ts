@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { schemaToType } from "../index.js";
+import { schemaToType } from "../../index.js";
 
 const schema = {
   type: "object",
