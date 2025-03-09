@@ -68,10 +68,12 @@ jobs:
             target: x86_64-apple-darwin
             build: pnpm build --target x86_64-apple-darwin
           - host: windows-latest
+            docker: mcr.microsoft.com/windows/nanoserver:ltsc2022
             build: |-
               pnpm build --target x86_64-pc-windows-msvc
             target: x86_64-pc-windows-msvc
           - host: windows-latest
+            docker: mcr.microsoft.com/windows/nanoserver:ltsc2022
             build: |-
               pnpm build --target i686-pc-windows-msvc
             target: i686-pc-windows-msvc
@@ -115,6 +117,7 @@ jobs:
               pnpm build --target aarch64-unknown-linux-musl
           - host: windows-latest
             target: aarch64-pc-windows-msvc
+            docker: mcr.microsoft.com/windows/nanoserver:ltsc2022
             build: |-
               pnpm build --target aarch64-pc-windows-msvc
     name: stable - ${{ matrix.settings.target }} - node@20
@@ -167,12 +170,8 @@ jobs:
           run: ${{ matrix.settings.build }}
       - name: Build
         run: ${{ matrix.settings.build }}
-        if: ${{ !matrix.settings.docker && !contains(matrix.settings.host, 'windows') }}
+        if: ${{ !matrix.settings.docker }}
         shell: bash
-      - name: Build on Windows
-        run: ${{ matrix.settings.build }}
-        if: ${{ !matrix.settings.docker && contains(matrix.settings.host, 'windows') }}
-        shell: pwsh
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
