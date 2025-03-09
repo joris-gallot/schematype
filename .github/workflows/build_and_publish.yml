@@ -70,13 +70,13 @@ jobs:
           - host: windows-latest
             build: |-
               New-Item -ItemType Directory -Force -Path "D:\a\schematype\schematype\target" &&
-              icacls "D:\a\schematype\schematype\target" /grant Everyone:F /T &&
+              icacls "D:\a\schematype\schematype\target" /grant Everyone:F /T /C /Q &&
               pnpm build --target x86_64-pc-windows-msvc
             target: x86_64-pc-windows-msvc
           - host: windows-latest
             build: |-
               New-Item -ItemType Directory -Force -Path "D:\a\schematype\schematype\target" &&
-              icacls "D:\a\schematype\schematype\target" /grant Everyone:F /T &&
+              icacls "D:\a\schematype\schematype\target" /grant Everyone:F /T /C /Q &&
               pnpm build --target i686-pc-windows-msvc
             target: i686-pc-windows-msvc
           - host: ubuntu-latest
@@ -121,7 +121,7 @@ jobs:
             target: aarch64-pc-windows-msvc
             build: |-
               New-Item -ItemType Directory -Force -Path "D:\a\schematype\schematype\target" &&
-              icacls "D:\a\schematype\schematype\target" /grant Everyone:F /T &&
+              icacls "D:\a\schematype\schematype\target" /grant Everyone:F /T /C /Q &&
               pnpm build --target aarch64-pc-windows-msvc
     name: stable - ${{ matrix.settings.target }} - node@20
     runs-on: ${{ matrix.settings.host }}
