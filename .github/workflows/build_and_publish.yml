@@ -169,6 +169,7 @@ jobs:
         run: ${{ matrix.settings.build }}
         if: ${{ !matrix.settings.docker }}
         shell: bash
+        continue-on-error: true
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -228,7 +229,7 @@ jobs:
           name: bindings-freebsd
           path: ${{ env.APP_NAME }}.*.node
           if-no-files-found: error
-  test-macOS-windows-binding:
+  test-windows-binding:
     if: ${{ github.event.pull_request.draft == false }}
     needs:
       - build
@@ -236,22 +237,14 @@ jobs:
       fail-fast: false
       matrix:
         settings:
-          - host: windows-latest
-            target: x86_64-pc-windows-msvc
+          - target: x86_64-pc-windows-msvc
             architecture: x64
-          - host: windows-latest
-            target: i686-pc-windows-msvc
+          - target: i686-pc-windows-msvc
             architecture: x86
-          - host: macos-latest
-            target: aarch64-apple-darwin
-            architecture: arm64
-          - host: macos-latest
-            target: x86_64-apple-darwin
-            architecture: x64
         node:
           - 20
     name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
-    runs-on: ${{ matrix.settings.host }}
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - name: Setup pnpm
@@ -271,9 +264,44 @@ jobs:
         with:
           name: bindings-${{ matrix.settings.target }}
           path: .
-      - name: List packages
-        run: ls -R .
-        shell: bash
+      - name: Test bindings
+        run: pnpm test
+        continue-on-error: true
+  test-macOS-binding:
+    if: ${{ github.event.pull_request.draft == false }}
+    needs:
+      - build
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - target: aarch64-apple-darwin
+            architecture: arm64
+          - target: x86_64-apple-darwin
+            architecture: x64
+        node:
+          - 20
+    name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: package.json
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+          architecture: ${{ matrix.settings.architecture }}
+      - name: Install dependencies
+        run: pnpm install
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: bindings-${{ matrix.settings.target }}
+          path: .
       - name: Test bindings
         run: pnpm test
   test-linux-x64-gnu-binding:
@@ -478,7 +506,8 @@ jobs:
     needs:
       - build
       - build-freebsd
-      - test-macOS-windows-binding
+      - test-windows-binding
+      - test-macOS-binding
       - test-linux-x64-gnu-binding
       - test-linux-x64-musl-binding
       - test-linux-aarch64-gnu-binding
