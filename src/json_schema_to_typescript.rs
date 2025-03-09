@@ -524,7 +524,7 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
           link: Some(UnionOrIntersection::Intersection),
         }],
         _ => {
-          println!(
+          eprintln!(
             "schema type not recognized, defaulting to any type\n{:?}",
             schema.schema_kind
           );
