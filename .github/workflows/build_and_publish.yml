@@ -69,14 +69,10 @@ jobs:
             build: pnpm build --target x86_64-apple-darwin
           - host: windows-latest
             build: |-
-              New-Item -ItemType Directory -Force -Path "D:\a\schematype\schematype\target" &&
-              icacls "D:\a\schematype\schematype\target" /grant Everyone:F /T /C /Q &&
               pnpm build --target x86_64-pc-windows-msvc
             target: x86_64-pc-windows-msvc
           - host: windows-latest
             build: |-
-              New-Item -ItemType Directory -Force -Path "D:\a\schematype\schematype\target" &&
-              icacls "D:\a\schematype\schematype\target" /grant Everyone:F /T /C /Q &&
               pnpm build --target i686-pc-windows-msvc
             target: i686-pc-windows-msvc
           - host: ubuntu-latest
@@ -120,8 +116,6 @@ jobs:
           - host: windows-latest
             target: aarch64-pc-windows-msvc
             build: |-
-              New-Item -ItemType Directory -Force -Path "D:\a\schematype\schematype\target" &&
-              icacls "D:\a\schematype\schematype\target" /grant Everyone:F /T /C /Q &&
               pnpm build --target aarch64-pc-windows-msvc
     name: stable - ${{ matrix.settings.target }} - node@20
     runs-on: ${{ matrix.settings.host }}
@@ -173,12 +167,8 @@ jobs:
           run: ${{ matrix.settings.build }}
       - name: Build
         run: ${{ matrix.settings.build }}
-        if: ${{ !matrix.settings.docker && !contains(matrix.settings.host, 'windows') }}
+        if: ${{ !matrix.settings.docker }}
         shell: bash
-      - name: Build on Windows
-        run: ${{ matrix.settings.build }}
-        if: ${{ !matrix.settings.docker && contains(matrix.settings.host, 'windows') }}
-        shell: pwsh
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
