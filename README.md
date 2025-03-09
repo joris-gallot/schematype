@@ -50,7 +50,85 @@ export type User = {
 ```
 
 
-## Supported Features
+## OpenAPI to Typescript types
+
+You can also convert OpenAPI v3.0 schemas to types:
+
+```typescript
+import { openApiToTypes } from "@schematype/core";
+
+const openapi = {
+  openapi: "3.0.0",
+  info: {
+    title: "Test API",
+    version: "1.0.0"
+  },
+  paths: {
+    "/users/{id}": {
+      get: {
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: {
+              type: "string"
+            }
+          }
+        ],
+        responses: {
+          "200": {
+            description: "Success response",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    name: { type: "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+};
+
+const result = openApiToTypes(openapi);
+console.log(result);
+```
+
+**Output:**
+```ts
+{
+  "paths": [
+    {
+      "path": "/users/{id}",
+      "method": "get",
+      "pathParameters": "export type GetUsersIdPath = {\n  id: string;\n};",
+      "responses": {
+        "200": "export type GetUsersIdResponse = {\n  id?: string;\n  name?: string;\n};"
+      }
+    }
+  ],
+  "components": []
+}
+```
+
+The `openApiToTypes` function returns an object containing:
+- `paths`: Array of path objects containing TypeScript types for:
+  - Query parameters
+  - Path parameters
+  - Request body
+  - Responses
+- `components`: Array of reusable schema components converted to TypeScript types
+
+
+
+## Supported Features for JSON Schema
 
 ### Basic Types
 - `string`
