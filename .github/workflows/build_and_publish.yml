@@ -68,10 +68,14 @@ jobs:
             target: x86_64-apple-darwin
             build: pnpm build --target x86_64-apple-darwin
           - host: windows-latest
+            # ignore build error on windows for now due to unresolved LNK1104 linker error
+            # TODO: fix windows build error and remove this workaround
             build: |-
               pnpm build --target x86_64-pc-windows-msvc || true
             target: x86_64-pc-windows-msvc
           - host: windows-latest
+            # ignore build error on windows for now due to unresolved LNK1104 linker error
+            # TODO: fix windows build error and remove this workaround
             build: |-
               pnpm build --target i686-pc-windows-msvc || true
             target: i686-pc-windows-msvc
@@ -115,6 +119,8 @@ jobs:
               pnpm build --target aarch64-unknown-linux-musl
           - host: windows-latest
             target: aarch64-pc-windows-msvc
+            # ignore build error on windows for now due to unresolved LNK1104 linker error
+            # TODO: fix windows build error and remove this workaround
             build: |-
               pnpm build --target aarch64-pc-windows-msvc || true
     name: stable - ${{ matrix.settings.target }} - node@20
