@@ -271,6 +271,8 @@ jobs:
           path: .
       - name: Test bindings
         run: pnpm test
+        # ignore test error on windows for now due to unresolved LNK1104 linker error
+        # TODO: fix windows test error and remove this workaround
         continue-on-error: true
   test-macOS-binding:
     if: ${{ github.event.pull_request.draft == false }}
