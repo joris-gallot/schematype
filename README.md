@@ -28,7 +28,7 @@ const schema = {
   required: ["id"]
 };
 
-const tsType = schemaToType("User", schema);
+const tsType = schemaToType(schema, { name: "User" });
 console.log(tsType);
 ```
 
@@ -44,8 +44,9 @@ export type User = {
 
 ```ts
 {
-  preferUnknownOverAny: boolean    // default to false
-  preferInterfaceOverType: boolean // default to false
+  name?: string
+  preferUnknownOverAny?: boolean    // default to false
+  preferInterfaceOverType?: boolean // default to false
 }
 ```
 
@@ -108,9 +109,9 @@ console.log(result);
     {
       "path": "/users/{id}",
       "method": "get",
-      "pathParameters": "export type GetUsersIdPath = {\n  id: string;\n};",
+      "pathParameters": "{\n  id: string;\n}",
       "responses": {
-        "200": "export type GetUsersIdResponse = {\n  id?: string;\n  name?: string;\n};"
+        "200": "{\n  id?: string;\n  name?: string;\n}"
       }
     }
   ],

@@ -10,10 +10,5 @@ const schema = {
   required: ["id"]
 };
 
-const options = {
-  preferInterfaceOverType: true,
-  preferUnknownOverAny: false
-}
-
-const tsType = schemaToType("User", schema, options);
+const tsType = schemaToType(schema, { name: "User" });
 console.log(tsType);

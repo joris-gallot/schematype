@@ -21,7 +21,6 @@ pub fn open_api_to_types(env: Env, open_api_input: JsObject) -> Result<OpenApiOu
 #[napi]
 pub fn schema_to_type(
   env: Env,
-  name: String,
   schema_input: JsObject,
   options: Option<SchemaTypeOptions>,
 ) -> Result<String> {
@@ -30,11 +29,8 @@ pub fn schema_to_type(
   let schema: Schema = serde_json::from_value(schema_json)
     .map_err(|e| napi::Error::new(napi::Status::InvalidArg, format!("Invalid schema: {}", e)))?;
 
-  let interface = json_schema_to_typescript::schema_to_typescript(
-    name,
-    openapiv3::ReferenceOr::Item(schema),
-    options,
-  );
+  let interface =
+    json_schema_to_typescript::schema_to_typescript(openapiv3::ReferenceOr::Item(schema), options);
 
   Ok(interface.to_string())
 }

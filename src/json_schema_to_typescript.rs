@@ -7,8 +7,9 @@ use std::fmt;
 #[derive(Debug, Default)]
 #[napi(object)]
 pub struct SchemaTypeOptions {
-  pub prefer_unknown_over_any: bool,
-  pub prefer_interface_over_type: bool,
+  pub name: Option<String>,
+  pub prefer_unknown_over_any: Option<bool>,
+  pub prefer_interface_over_type: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -26,7 +27,6 @@ enum UnionOrIntersection {
 
 #[derive(Debug)]
 pub struct TypeInterface {
-  name: String,
   options: SchemaTypeOptions,
   expressions: Vec<Expression>,
 }
@@ -104,7 +104,7 @@ impl TypeInterface {
       PrimitiveType::Boolean => "boolean",
       PrimitiveType::Null => "null",
       PrimitiveType::Any => {
-        if options.prefer_unknown_over_any {
+        if options.prefer_unknown_over_any.unwrap_or(false) {
           "unknown"
         } else {
           "any"
@@ -301,26 +301,30 @@ impl fmt::Display for TypeInterface {
       })
       .collect::<Vec<String>>();
 
-    let is_single_type_object = self.expressions.len() == 1
-      && matches!(
-        self.expressions[0].types[0],
-        ObjectOrPrimitiveOrRef::TypeObject(_)
-      );
+    let final_type = types.join(TypeInterface::get_separator(&Some(
+      UnionOrIntersection::Union,
+    )));
 
-    let export_type = if self.options.prefer_interface_over_type && is_single_type_object {
-      format!("export interface {}", self.name)
+    let name = self.options.name.clone().unwrap_or_default();
+
+    if name.is_empty() {
+      write!(f, "{}", final_type)
     } else {
-      format!("export type {} =", self.name)
-    };
+      let is_single_type_object = self.expressions.len() == 1
+        && matches!(
+          self.expressions[0].types[0],
+          ObjectOrPrimitiveOrRef::TypeObject(_)
+        );
 
-    write!(
-      f,
-      "{} {};",
-      export_type,
-      types.join(TypeInterface::get_separator(&Some(
-        UnionOrIntersection::Union
-      )))
-    )
+      let export_type =
+        if self.options.prefer_interface_over_type.unwrap_or(false) && is_single_type_object {
+          format!("export interface {}", name)
+        } else {
+          format!("export type {} =", name)
+        };
+
+      write!(f, "{} {};", export_type, final_type)
+    }
   }
 }
 
@@ -575,12 +579,10 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
 }
 
 pub fn schema_to_typescript(
-  name: String,
   schema: ReferenceOr<Schema>,
   options: Option<SchemaTypeOptions>,
 ) -> TypeInterface {
   TypeInterface {
-    name,
     options: options.unwrap_or_default(),
     expressions: schema_to_typescript_expressions(&schema, false, None),
   }
@@ -606,8 +608,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("EmptyObject".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("EmptyObject".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type EmptyObject = {
   metadata?: {};
@@ -633,7 +640,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface = schema_to_typescript("Book".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("Book".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type Book = {
   id?: string;
@@ -661,8 +674,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("BookMetadata".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("BookMetadata".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type BookMetadata = {
   id?: string;
@@ -690,8 +708,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("NewBook".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("NewBook".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type NewBook = {
   title: string;
@@ -733,8 +756,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("Review".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("Review".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type Review = {
   reviewer?: string;
@@ -805,7 +833,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface = schema_to_typescript("Post".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("Post".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type Post = {
   id: string;
@@ -880,7 +914,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface = schema_to_typescript("Task".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("Task".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type Task = {
   id: string;
@@ -955,7 +995,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface = schema_to_typescript("Grade".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("Grade".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type Grade = {
   id: string;
@@ -1010,8 +1056,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("Config".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("Config".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type Config = {
   id: string;
@@ -1047,8 +1098,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("InvalidObject".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("InvalidObject".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type InvalidObject = {
   invalid_property?: any;
@@ -1127,8 +1183,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("MixedEnum".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("MixedEnum".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type MixedEnum = {
   id: string;
@@ -1209,8 +1270,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("MixedEnum".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("MixedEnum".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type MixedEnum = {
   id: string;
@@ -1270,9 +1336,11 @@ mod tests {
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
     let type_interface = schema_to_typescript(
-      "MixedEnumAllOf".to_string(),
       ReferenceOr::Item(schema),
-      None,
+      Some(SchemaTypeOptions {
+        name: Some("MixedEnumAllOf".to_string()),
+        ..Default::default()
+      }),
     );
 
     let expected = r##"export type MixedEnumAllOf = {
@@ -1310,9 +1378,11 @@ mod tests {
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
     let type_interface = schema_to_typescript(
-      "SearchCriteria".to_string(),
       ReferenceOr::Item(schema),
-      None,
+      Some(SchemaTypeOptions {
+        name: Some("SearchCriteria".to_string()),
+        ..Default::default()
+      }),
     );
 
     let expected = r##"export type SearchCriteria = Book | {
@@ -1345,9 +1415,11 @@ mod tests {
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
     let type_interface = schema_to_typescript(
-      "BookWithMetadata".to_string(),
       ReferenceOr::Item(schema),
-      None,
+      Some(SchemaTypeOptions {
+        name: Some("BookWithMetadata".to_string()),
+        ..Default::default()
+      }),
     );
 
     let expected = r##"export type BookWithMetadata = Book & {
@@ -1389,8 +1461,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("UserInfo".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("UserInfo".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type UserInfo = {
   name: string;
@@ -1427,8 +1504,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("MixedArray".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("MixedArray".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type MixedArray = (string | number | {
   name: string;
@@ -1471,8 +1553,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("CombinedArray".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("CombinedArray".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type CombinedArray = ({
   id: string;
@@ -1511,8 +1598,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("MixedAnyArray".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("MixedAnyArray".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type MixedAnyArray = (string | number | {
   name: string;
@@ -1571,8 +1663,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("MixedValue".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("MixedValue".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type MixedValue = {
   key: string;
@@ -1634,8 +1731,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("MixedValue".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("MixedValue".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type MixedValue = {
   key: string;
@@ -1680,8 +1782,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("Location".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("Location".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type Location = {
   id: string;
@@ -1728,8 +1835,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("Product".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("Product".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type Product = {
   id: string;
@@ -1806,8 +1918,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("Organization".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("Organization".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type Organization = {
   id: string;
@@ -1834,51 +1951,56 @@ mod tests {
 
   #[test]
   fn test_nested_object_with_array_oneof() {
-    let schema_json = r#"
-          {
-              "type": "object",
-              "properties": {
-                  "id": { "type": "string" },
-                  "metadata": {
-                      "type": "object",
-                      "properties": {
-                          "title": { "type": "string" },
-                          "tags": {
-                              "type": "array",
-                              "items": {
-                                  "oneOf": [
-                                      { "type": "string" },
-                                      {
-                                          "type": "object",
-                                          "properties": {
-                                              "name": { "type": "string" },
-                                              "value": { "type": "number" },
-                                              "metadata": {
-                                                  "type": "object",
-                                                  "properties": {
-                                                      "description": { "type": "string" },
-                                                      "priority": { "type": "number" }
-                                                  },
-                                                  "required": ["description"]
-                                              }
-                                          },
-                                          "required": ["name", "value"]
-                                      }
-                                  ]
-                              }
-                          }
-                      },
-                      "required": ["title", "tags"]
-                  }
-              },
-              "required": ["id", "metadata"]
-          }
-          "#;
+    let schema_json = r##"
+        {
+            "type": "object",
+            "properties": {
+                "id": { "type": "string" },
+                "metadata": {
+                    "type": "object",
+                    "properties": {
+                        "title": { "type": "string" },
+                        "tags": {
+                            "type": "array",
+                            "items": {
+                                "oneOf": [
+                                    { "type": "string" },
+                                    {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": { "type": "string" },
+                                            "value": { "type": "number" },
+                                            "metadata": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "description": { "type": "string" },
+                                                    "priority": { "type": "number" }
+                                                },
+                                                "required": ["description"]
+                                            }
+                                        },
+                                        "required": ["name", "value"]
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "required": ["title", "tags"]
+                }
+            },
+            "required": ["id", "metadata"]
+        }
+        "##;
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("DeepArray".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("DeepArray".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type DeepArray = {
   id: string;
@@ -1947,9 +2069,11 @@ mod tests {
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
     let type_interface = schema_to_typescript(
-      "DeepArrayAllOf".to_string(),
       ReferenceOr::Item(schema),
-      None,
+      Some(SchemaTypeOptions {
+        name: Some("DeepArrayAllOf".to_string()),
+        ..Default::default()
+      }),
     );
 
     let expected = r##"export type DeepArrayAllOf = {
@@ -2016,8 +2140,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("DeepArrayAny".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("DeepArrayAny".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type DeepArrayAny = {
   id: string;
@@ -2062,8 +2191,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("DeepRefArray".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("DeepRefArray".to_string()),
+        ..Default::default()
+      }),
+    );
 
     let expected = r##"export type DeepRefArray = {
   id: string;
@@ -2138,8 +2272,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let type_interface =
-      schema_to_typescript("ComplexObject".to_string(), ReferenceOr::Item(schema), None);
+    let type_interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("ComplexObject".to_string()),
+        ..Default::default()
+      }),
+    );
     let expected = r##"export type ComplexObject = {
   /**
    * Unique identifier
@@ -2259,9 +2398,11 @@ mod tests {
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
     let type_interface = schema_to_typescript(
-      "ObjectWithDeprecated".to_string(),
       ReferenceOr::Item(schema),
-      None,
+      Some(SchemaTypeOptions {
+        name: Some("ObjectWithDeprecated".to_string()),
+        ..Default::default()
+      }),
     );
 
     let expected = r##"export type ObjectWithDeprecated = {
@@ -2343,9 +2484,11 @@ mod tests {
 
     // Test with default options (prefer_unknown_over_any = false)
     let type_interface = schema_to_typescript(
-      "SchemaWithAny".to_string(),
       ReferenceOr::Item(schema.clone()),
-      None,
+      Some(SchemaTypeOptions {
+        name: Some("SchemaWithAny".to_string()),
+        ..Default::default()
+      }),
     );
 
     let expected = r##"export type SchemaWithAny = {
@@ -2386,15 +2529,13 @@ mod tests {
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
 
-    let options = Some(SchemaTypeOptions {
-      prefer_unknown_over_any: true,
-      prefer_interface_over_type: false,
-    });
-
     let type_interface_unknown = schema_to_typescript(
-      "SchemaWithUnknown".to_string(),
       ReferenceOr::Item(schema.clone()),
-      options,
+      Some(SchemaTypeOptions {
+        name: Some("SchemaWithUnknown".to_string()),
+        prefer_unknown_over_any: Some(true),
+        prefer_interface_over_type: Some(false),
+      }),
     );
 
     let expected_unknown = r##"export type SchemaWithUnknown = {
@@ -2425,12 +2566,15 @@ mod tests {
         "##;
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
-    let options = Some(SchemaTypeOptions {
-      prefer_unknown_over_any: false,
-      prefer_interface_over_type: true,
-    });
 
-    let interface = schema_to_typescript("Person".to_string(), ReferenceOr::Item(schema), options);
+    let interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("Person".to_string()),
+        prefer_unknown_over_any: Some(false),
+        prefer_interface_over_type: Some(true),
+      }),
+    );
 
     let expected = r##"export interface Person {
   name?: string;
@@ -2452,13 +2596,15 @@ mod tests {
         "##;
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
-    let options = Some(SchemaTypeOptions {
-      prefer_unknown_over_any: false,
-      prefer_interface_over_type: true,
-    });
 
-    let type_def =
-      schema_to_typescript("UnionType".to_string(), ReferenceOr::Item(schema), options);
+    let type_def = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("UnionType".to_string()),
+        prefer_unknown_over_any: Some(false),
+        prefer_interface_over_type: Some(true),
+      }),
+    );
 
     // Should still use type for unions even with prefer_interface_over_type
     let expected = r##"export type UnionType = string | number;"##;
@@ -2491,13 +2637,15 @@ mod tests {
         "##;
 
     let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
-    let options = Some(SchemaTypeOptions {
-      prefer_unknown_over_any: false,
-      prefer_interface_over_type: true,
-    });
 
-    let interface =
-      schema_to_typescript("UserConfig".to_string(), ReferenceOr::Item(schema), options);
+    let interface = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: Some("UserConfig".to_string()),
+        prefer_unknown_over_any: Some(false),
+        prefer_interface_over_type: Some(true),
+      }),
+    );
 
     let expected = r##"export interface UserConfig {
   id?: string;
@@ -2511,5 +2659,60 @@ mod tests {
 };"##;
 
     assert_eq!(interface.to_string(), expected.to_string());
+  }
+
+  #[test]
+  fn test_schema_without_name() {
+    let schema_json = r##"
+        {
+            "type": "object", 
+            "properties": {
+                "id": {"type": "string"},
+                "age": {"type": "number"}
+            }
+        }
+        "##;
+
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+    let type_def = schema_to_typescript(ReferenceOr::Item(schema), None);
+
+    let expected = r##"{
+  id?: string;
+  age?: number;
+}"##;
+
+    assert_eq!(type_def.to_string(), expected.to_string());
+  }
+
+  #[test]
+  fn test_schema_without_name_unknown_over_any() {
+    let schema_json = r##"
+        {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string"},
+                "data": {}
+            }
+        }
+        "##;
+
+    let schema: Schema = serde_json::from_str(schema_json).expect("Could not deserialize schema");
+
+    let type_def = schema_to_typescript(
+      ReferenceOr::Item(schema),
+      Some(SchemaTypeOptions {
+        name: None,
+        prefer_unknown_over_any: Some(true),
+        prefer_interface_over_type: None,
+      }),
+    );
+
+    let expected = r##"{
+  id?: string;
+  data?: unknown;
+}"##;
+
+    assert_eq!(type_def.to_string(), expected.to_string());
   }
 }

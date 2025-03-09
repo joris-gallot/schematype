@@ -18,7 +18,8 @@ test('basic object schema', (t) => {
     },
   }
 
-  const result = schemaToType('Book', schema)
+  const result = schemaToType(schema, { name: 'Book' })
+
   t.snapshot(result)
 })
 
@@ -32,12 +33,12 @@ test('prefer interface over type for simple object', (t) => {
     }
   }
 
-  const options = {
+  const result = schemaToType(schema, { 
+    name: 'Person',
     preferUnknownOverAny: false,
-    preferInterfaceOverType: true
-  }
+    preferInterfaceOverType: true 
+  })
 
-  const result = schemaToType('Person', schema, options)
   t.snapshot(result)
 })
 
@@ -63,11 +64,12 @@ test('schema with unknown types', (t) => {
     required: ['id']
   }
 
-  const options = {
+
+  const result = schemaToType(schema, { 
+    name: 'SchemaWithUnknown',
     preferUnknownOverAny: true,
     preferInterfaceOverType: false
-  }
+  })
 
-  const result = schemaToType('SchemaWithUnknown', schema, options)
   t.snapshot(result)
 })

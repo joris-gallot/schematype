@@ -61,27 +61,6 @@ impl OpenApiOutput {
       OpenApiMethod::Options => "options",
     }
   }
-
-  fn capitalize_first(s: &str) -> String {
-    let mut chars = s.chars();
-    match chars.next() {
-      Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-      None => String::new(),
-    }
-  }
-
-  fn get_interface_name(path: &str, method: &OpenApiMethod) -> String {
-    format!(
-      "{}{}",
-      OpenApiOutput::capitalize_first(OpenApiOutput::open_api_method_to_string(method)),
-      path
-        .split("/")
-        .filter(|s| !s.is_empty())
-        .map(|s| s.replace("{", "").replace("}", ""))
-        .map(|s| s[0..1].to_uppercase() + &s[1..])
-        .collect::<String>()
-    )
-  }
 }
 
 fn extract_parameters(
@@ -121,10 +100,7 @@ fn extract_parameters(
 
 fn generate_parameters_ts_type(
   parameters: &[&Parameter],
-  path: &str,
-  method: &OpenApiMethod,
   parameter_type: fn(&Parameter) -> Option<&ParameterData>,
-  suffix: &str,
 ) -> Option<String> {
   let has_parameters = parameters.iter().any(|p| parameter_type(p).is_some());
 
@@ -142,16 +118,8 @@ fn generate_parameters_ts_type(
 
   if let Ok(schema) = serde_json::from_value(schema_json) {
     Some(
-      crate::json_schema_to_typescript::schema_to_typescript(
-        format!(
-          "{}{}",
-          OpenApiOutput::get_interface_name(path, method),
-          suffix
-        ),
-        ReferenceOr::Item(schema),
-        None,
-      )
-      .to_string(),
+      crate::json_schema_to_typescript::schema_to_typescript(ReferenceOr::Item(schema), None)
+        .to_string(),
     )
   } else {
     None
@@ -173,11 +141,7 @@ fn get_open_api_path(path: &str, method: OpenApiMethod, operation: &Operation) -
   };
 
   let request_body_type: Option<TypeInterface> = request_body.map(|request_body| {
-    crate::json_schema_to_typescript::schema_to_typescript(
-      format!("{}Body", OpenApiOutput::get_interface_name(path, &method)),
-      request_body.clone(),
-      None,
-    )
+    crate::json_schema_to_typescript::schema_to_typescript(request_body.clone(), None)
   });
 
   let parameters: Vec<&Parameter> = operation
@@ -192,27 +156,15 @@ fn get_open_api_path(path: &str, method: OpenApiMethod, operation: &Operation) -
     })
     .collect();
 
-  let query_parameters = generate_parameters_ts_type(
-    &parameters,
-    path,
-    &method,
-    |p| match p {
-      Parameter::Query { parameter_data, .. } => Some(parameter_data),
-      _ => None,
-    },
-    "Query",
-  );
+  let query_parameters = generate_parameters_ts_type(&parameters, |p| match p {
+    Parameter::Query { parameter_data, .. } => Some(parameter_data),
+    _ => None,
+  });
 
-  let path_parameters = generate_parameters_ts_type(
-    &parameters,
-    path,
-    &method,
-    |p| match p {
-      Parameter::Path { parameter_data, .. } => Some(parameter_data),
-      _ => None,
-    },
-    "Path",
-  );
+  let path_parameters = generate_parameters_ts_type(&parameters, |p| match p {
+    Parameter::Path { parameter_data, .. } => Some(parameter_data),
+    _ => None,
+  });
 
   let responses: HashMap<String, String> = operation
     .responses
@@ -234,14 +186,8 @@ fn get_open_api_path(path: &str, method: OpenApiMethod, operation: &Operation) -
         None => return None,
       };
 
-      let res_schema_interface = crate::json_schema_to_typescript::schema_to_typescript(
-        format!(
-          "{}Response",
-          OpenApiOutput::get_interface_name(path, &method)
-        ),
-        res_schema.clone(),
-        None,
-      );
+      let res_schema_interface =
+        crate::json_schema_to_typescript::schema_to_typescript(res_schema.clone(), None);
 
       Some((status_code.to_string(), res_schema_interface.to_string()))
     })
@@ -265,12 +211,8 @@ pub fn open_api_to_typescript(open_api: OpenAPI) -> OpenApiOutput {
     .iter()
     .map(|(name, schema)| OpenApiComponent {
       name: name.clone(),
-      ts_type: crate::json_schema_to_typescript::schema_to_typescript(
-        name.clone(),
-        schema.clone(),
-        None,
-      )
-      .to_string(),
+      ts_type: crate::json_schema_to_typescript::schema_to_typescript(schema.clone(), None)
+        .to_string(),
     })
     .collect();
 
@@ -409,7 +351,7 @@ mod tests {
 
     assert_eq!(
       result.paths[0].query_parameters,
-      Some("export type GetSearchQuery = {\n  limit?: number;\n  search: string;\n};".to_string())
+      Some("{\n  limit?: number;\n  search: string;\n}".to_string())
     );
     assert_eq!(result.paths[0].method, "get");
     assert_eq!(result.paths[0].path, "/search");
@@ -445,7 +387,7 @@ mod tests {
 
     assert_eq!(
       result.paths[0].path_parameters,
-      Some("export type DeleteUsersIdPath = {\n  id: number;\n};".to_string())
+      Some("{\n  id: number;\n}".to_string())
     );
     assert_eq!(result.paths[0].method, "delete");
     assert_eq!(result.paths[0].path, "/users/{id}");
