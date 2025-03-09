@@ -304,3 +304,282 @@ pub fn open_api_to_typescript(open_api: OpenAPI) -> OpenApiOutput {
 
   OpenApiOutput { paths, components }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use serde_json::json;
+
+  fn create_openapi_json(paths_json: &str) -> OpenAPI {
+    let base = json!({
+      "openapi": "3.0.0",
+      "info": {
+        "title": "Test API",
+        "version": "1.0.0"
+      }
+    });
+
+    let paths: serde_json::Value = serde_json::from_str(paths_json).unwrap();
+
+    let complete_json = json!({
+      "openapi": base["openapi"],
+      "info": base["info"],
+      "paths": paths
+    });
+
+    serde_json::from_value(complete_json).unwrap()
+  }
+
+  #[test]
+  fn test_basic_get() {
+    let openapi = create_openapi_json(
+      r#"{
+      "/test": {
+        "get": {
+          "responses": {
+            "200": {
+              "description": "Success response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }"#,
+    );
+    let result = open_api_to_typescript(openapi);
+
+    assert_eq!(result.paths.len(), 1);
+    assert_eq!(result.paths[0].method, "get");
+    assert_eq!(result.paths[0].path, "/test");
+    assert!(result.paths[0].responses.contains_key("200"));
+  }
+
+  #[test]
+  fn test_with_query_params() {
+    let openapi = create_openapi_json(
+      r#"{
+      "/search": {
+        "get": {
+          "parameters": [
+            {
+              "in": "query",
+              "name": "search",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "in": "query",
+              "name": "limit",
+              "required": false,
+              "schema": {
+                "type": "integer"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Success response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }"#,
+    );
+    let result = open_api_to_typescript(openapi);
+
+    assert_eq!(
+      result.paths[0].query_parameters,
+      Some("export type GetSearchQuery = {\n  limit?: number;\n  search: string;\n};".to_string())
+    );
+    assert_eq!(result.paths[0].method, "get");
+    assert_eq!(result.paths[0].path, "/search");
+    assert!(result.paths[0].responses.contains_key("200"));
+  }
+
+  #[test]
+  fn test_with_path_params() {
+    let openapi = create_openapi_json(
+      r#"{
+      "/users/{id}": {
+        "delete": {
+          "parameters": [
+            {
+              "in": "path",
+              "name": "id",
+              "required": true,
+              "schema": {
+                "type": "integer"
+              }
+            }
+          ],
+          "responses": {
+            "204": {
+              "description": "User deleted successfully"
+            }
+          }
+        }
+      }
+    }"#,
+    );
+    let result = open_api_to_typescript(openapi);
+
+    assert_eq!(
+      result.paths[0].path_parameters,
+      Some("export type DeleteUsersIdPath = {\n  id: number;\n};".to_string())
+    );
+    assert_eq!(result.paths[0].method, "delete");
+    assert_eq!(result.paths[0].path, "/users/{id}");
+  }
+
+  #[test]
+  fn test_with_request_body() {
+    let openapi = create_openapi_json(
+      r#"{
+      "/users": {
+        "post": {
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["name", "email"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "User created successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }"#,
+    );
+    let result = open_api_to_typescript(openapi);
+
+    assert!(result.paths[0].request_body.is_some());
+    assert_eq!(result.paths[0].method, "post");
+    assert_eq!(result.paths[0].path, "/users");
+    assert!(result.paths[0].responses.contains_key("201"));
+  }
+
+  #[test]
+  fn test_multiple_responses() {
+    let openapi = create_openapi_json(
+      r#"{
+      "/users/{id}": {
+        "patch": {
+          "parameters": [
+            {
+              "in": "path",
+              "name": "id",
+              "required": true,
+              "schema": {
+                "type": "integer"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Success response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad request",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }"#,
+    );
+    let result = open_api_to_typescript(openapi);
+
+    assert_eq!(result.paths[0].responses.len(), 2);
+    assert!(result.paths[0].responses.contains_key("200"));
+    assert!(result.paths[0].responses.contains_key("400"));
+    assert_eq!(result.paths[0].method, "patch");
+  }
+}
