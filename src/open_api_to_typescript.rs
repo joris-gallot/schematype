@@ -36,12 +36,10 @@ pub struct OpenApiComponent {
 pub struct OpenApiPath {
   pub path: String,
   pub method: String,
-  pub summary: Option<String>,
-  pub description: Option<String>,
-  pub query_ts_type: Option<String>,
-  pub path_ts_type: Option<String>,
+  pub query_parameters: Option<String>,
+  pub path_parameters: Option<String>,
   pub request_body: Option<String>,
-  pub responses: HashMap<String, OpenApiResponse>,
+  pub responses: HashMap<String, String>,
 }
 
 #[derive(Debug)]
@@ -49,13 +47,6 @@ pub struct OpenApiPath {
 pub struct OpenApiParameter {
   pub description: Option<String>,
   pub required: bool,
-  pub ts_type: String,
-}
-
-#[derive(Debug)]
-#[napi(object)]
-pub struct OpenApiResponse {
-  pub description: String,
   pub ts_type: String,
 }
 
@@ -201,7 +192,7 @@ fn get_open_api_path(path: &str, method: OpenApiMethod, operation: &Operation) -
     })
     .collect();
 
-  let query_ts_type = generate_parameters_ts_type(
+  let query_parameters = generate_parameters_ts_type(
     &parameters,
     path,
     &method,
@@ -212,7 +203,7 @@ fn get_open_api_path(path: &str, method: OpenApiMethod, operation: &Operation) -
     "Query",
   );
 
-  let path_ts_type = generate_parameters_ts_type(
+  let path_parameters = generate_parameters_ts_type(
     &parameters,
     path,
     &method,
@@ -223,7 +214,7 @@ fn get_open_api_path(path: &str, method: OpenApiMethod, operation: &Operation) -
     "Path",
   );
 
-  let responses: HashMap<String, OpenApiResponse> = operation
+  let responses: HashMap<String, String> = operation
     .responses
     .responses
     .iter()
@@ -252,23 +243,15 @@ fn get_open_api_path(path: &str, method: OpenApiMethod, operation: &Operation) -
         None,
       );
 
-      Some((
-        status_code.to_string(),
-        OpenApiResponse {
-          description: res.description.clone(),
-          ts_type: res_schema_interface.to_string(),
-        },
-      ))
+      Some((status_code.to_string(), res_schema_interface.to_string()))
     })
     .collect();
 
   OpenApiPath {
     path: path.to_string(),
     method: OpenApiOutput::open_api_method_to_string(&method).to_string(),
-    summary: operation.summary.clone(),
-    description: operation.description.clone(),
-    query_ts_type,
-    path_ts_type,
+    query_parameters,
+    path_parameters,
     request_body: request_body_type.map(|request_body_type| request_body_type.to_string()),
     responses,
   }
