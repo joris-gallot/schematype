@@ -236,7 +236,7 @@ pub fn open_api_to_typescript(open_api: OpenAPI) -> OpenApiOutput {
         (OpenApiMethod::Options, &path_item.options),
       ]
       .into_iter()
-      .filter_map(move |(method, operation)| {
+      .filter_map(|(method, operation)| {
         operation
           .as_ref()
           .map(|op| get_open_api_path(path, method, op))
