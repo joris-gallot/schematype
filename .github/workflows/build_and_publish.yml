@@ -361,7 +361,7 @@ jobs:
         run: ls -R .
         shell: bash
       - name: Test bindings
-        run: docker run --rm -v $(pwd):/build -w /build node:${{ matrix.node }}-alpine npm test
+        run: docker run --rm -v $(pwd):/build -w /build node:${{ matrix.node }}-alpine pnpm test
   test-linux-aarch64-gnu-binding:
     if: ${{ github.event.pull_request.draft == false }}
     needs:
