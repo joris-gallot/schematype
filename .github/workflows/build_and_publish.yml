@@ -361,7 +361,12 @@ jobs:
         run: ls -R .
         shell: bash
       - name: Test bindings
-        run: docker run --rm -v $(pwd):/build -w /build node:${{ matrix.node }}-alpine pnpm test
+        run: |
+          docker run --rm -v $(pwd):/app -w /app node:${{ matrix.node }}-alpine sh -c "
+            corepack enable &&
+            pnpm install --frozen-lockfile &&
+            pnpm test
+          "
   test-linux-aarch64-gnu-binding:
     if: ${{ github.event.pull_request.draft == false }}
     needs:
