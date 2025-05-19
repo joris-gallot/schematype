@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import { openApiToTypes } from "../../index.js";
-import openApiExample from "../../openapi_example.json";
+import openApiExample from "./openapi_example.json";
 
 const openApi = openApiToTypes(openApiExample);
 
