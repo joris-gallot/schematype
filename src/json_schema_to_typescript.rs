@@ -566,7 +566,11 @@ fn schema_to_typescript_expressions<T: SchemaLike>(
       }
     }
     ReferenceOr::Reference { reference } => {
-      let reference_name = reference.split('/').last().unwrap_or_default().to_string();
+      let reference_name = reference
+        .split('/')
+        .next_back()
+        .unwrap_or_default()
+        .to_string();
       vec![Expression {
         types: vec![ObjectOrPrimitiveOrRef::RefProperty(RefProperty {
           reference: reference_name,
@@ -859,7 +863,7 @@ mod tests {
   fn test_object_with_number_enum() {
     let schema_json = r#"
         {
-            "type": "object", 
+            "type": "object",
             "properties": {
                 "id": { "type": "string" },
                 "priority": {
@@ -948,7 +952,7 @@ mod tests {
                     "enum": [1, 2, 3]
                 },
                 "grade": {
-                    "type": "integer", 
+                    "type": "integer",
                     "enum": [0, 1],
                     "nullable": true
                 },
@@ -1618,7 +1622,7 @@ mod tests {
   fn test_object_with_anyof_array_primitive_object() {
     let schema_json = r##"
         {
-            "type": "object", 
+            "type": "object",
             "properties": {
                 "key": {
                     "type": "string"
@@ -1686,7 +1690,7 @@ mod tests {
   fn test_object_with_oneof_array_primitive_object() {
     let schema_json = r##"
         {
-            "type": "object", 
+            "type": "object",
             "properties": {
                 "key": {
                     "type": "string"
@@ -2230,7 +2234,7 @@ mod tests {
                     }
                 },
                 "flags": {
-                    "type": "object", 
+                    "type": "object",
                     "description": "Configuration flags",
                     "properties": {
                         "isEnabled": {
@@ -2665,7 +2669,7 @@ mod tests {
   fn test_schema_without_name() {
     let schema_json = r##"
         {
-            "type": "object", 
+            "type": "object",
             "properties": {
                 "id": {"type": "string"},
                 "age": {"type": "number"}
