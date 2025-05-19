@@ -70,7 +70,8 @@ jobs:
             build: pnpm build --target x86_64-apple-darwin
           - host: windows-latest
             build: |-
-              dir D:/a/schematype/schematype
+              dir D:/a/schematype/schematype &&
+              cargo clean &&
               pnpm build --target x86_64-pc-windows-msvc
             target: x86_64-pc-windows-msvc
           - host: windows-latest
