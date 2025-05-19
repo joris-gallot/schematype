@@ -35,6 +35,7 @@ test('prefer interface over type for simple object', (t) => {
 
   const result = schemaToType(schema, {
     name: 'Person',
+    preferUnknownOverAny: false,
     preferInterfaceOverType: true
   })
 
