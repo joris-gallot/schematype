@@ -1,8 +1,8 @@
 # schematype
 
-Convert **JSON Schema** and **OpenAPI v3.0** schemas into **TypeScript type declarations** at **Rust speed**.
+Convert **JSON Schema** and **OpenAPI v3.0** schemas into **TypeScript type declarations**.
 
-This library is powered by Rust and leverages [`openapiv3`](https://crates.io/crates/openapiv3) for schema parsing. **Currently, only OpenAPI v3.0 is supported**.
+This library is powered by Rust and leverages [`openapiv3`](https://crates.io/crates/openapiv3) for schema parsing, currently, **only OpenAPI v3.0 is supported**.
 
 ## Installation
 
@@ -11,10 +11,6 @@ npm install @schematype/core
 ```
 
 ## Usage
-
-This package supports **CommonJS** and **ES Modules**.
-
-### **Example**
 
 ```typescript
 import { schemaToType } from "@schematype/core";
@@ -174,4 +170,3 @@ PRs are welcome! Feel free to contribute to improve schema parsing and support f
 
 ## License
 MIT
-
