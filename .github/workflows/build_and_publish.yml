@@ -69,16 +69,12 @@ jobs:
             target: x86_64-apple-darwin
             build: pnpm build --target x86_64-apple-darwin
           - host: windows-latest
-            # ignore build error on windows for now due to unresolved LNK1104 linker error
-            # TODO: fix windows build error and remove this workaround
             build: |-
-              pnpm build --target x86_64-pc-windows-msvc || true
+              pnpm build --target x86_64-pc-windows-msvc
             target: x86_64-pc-windows-msvc
           - host: windows-latest
-            # ignore build error on windows for now due to unresolved LNK1104 linker error
-            # TODO: fix windows build error and remove this workaround
             build: |-
-              pnpm build --target i686-pc-windows-msvc || true
+              pnpm build --target i686-pc-windows-msvc
             target: i686-pc-windows-msvc
           - host: ubuntu-latest
             target: x86_64-unknown-linux-gnu
@@ -120,10 +116,8 @@ jobs:
               pnpm build --target aarch64-unknown-linux-musl
           - host: windows-latest
             target: aarch64-pc-windows-msvc
-            # ignore build error on windows for now due to unresolved LNK1104 linker error
-            # TODO: fix windows build error and remove this workaround
             build: |-
-              pnpm build --target aarch64-pc-windows-msvc || true
+              pnpm build --target aarch64-pc-windows-msvc
     name: stable - ${{ matrix.settings.target }} - node@20
     runs-on: ${{ matrix.settings.host }}
     steps:
@@ -272,9 +266,6 @@ jobs:
           path: .
       - name: Test bindings
         run: pnpm test
-        # ignore test error on windows for now due to unresolved LNK1104 linker error
-        # TODO: fix windows test error and remove this workaround
-        continue-on-error: true
   test-macOS-binding:
     if: ${{ github.event.pull_request.draft == false }}
     needs:
