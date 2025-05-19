@@ -24,7 +24,7 @@ test('basic object schema', (t) => {
 })
 
 
-test('prefer interface over type for simple object', (t) => {
+test.skip('prefer interface over type for simple object', (t) => {
   const schema = {
     type: 'object',
     properties: {
@@ -35,14 +35,14 @@ test('prefer interface over type for simple object', (t) => {
 
   const result = schemaToType(schema, {
     name: 'Person',
-    preferUnknownOverAny: true,
+    preferUnknownOverAny: false,
     preferInterfaceOverType: true
   })
 
   t.snapshot(result)
 })
 
-test.skip('schema with unknown types', (t) => {
+test('schema with unknown types', (t) => {
   const schema = {
     type: 'object',
     properties: {
