@@ -104,7 +104,7 @@ impl TypeInterface {
       PrimitiveType::Boolean => "boolean",
       PrimitiveType::Null => "null",
       PrimitiveType::Any => {
-        if options.prefer_unknown_over_any.unwrap_or_default() {
+        if options.prefer_unknown_over_any.unwrap_or(false) {
           "unknown"
         } else {
           "any"
@@ -317,7 +317,7 @@ impl fmt::Display for TypeInterface {
         );
 
       let export_type =
-        if self.options.prefer_interface_over_type.unwrap_or_default() && is_single_type_object {
+        if self.options.prefer_interface_over_type.unwrap_or(false) && is_single_type_object {
           format!("export interface {}", name)
         } else {
           format!("export type {} =", name)
