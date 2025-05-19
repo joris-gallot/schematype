@@ -67,8 +67,7 @@ test('schema with unknown types', (t) => {
 
   const result = schemaToType(schema, {
     name: 'SchemaWithUnknown',
-    preferUnknownOverAny: true,
-    preferInterfaceOverType: false
+    preferUnknownOverAny: true
   })
 
   t.snapshot(result)
