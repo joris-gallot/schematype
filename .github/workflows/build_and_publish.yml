@@ -244,6 +244,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
+          cache: pnpm
           architecture: ${{ matrix.settings.architecture }}
       - name: Install dependencies
         run: pnpm install
