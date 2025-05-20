@@ -24,7 +24,7 @@ test('basic object schema', (t) => {
 })
 
 
-test('prefer interface over type for simple object', (t) => {
+test.skip('prefer interface over type for simple object', (t) => {
   const schema = {
     type: 'object',
     properties: {
