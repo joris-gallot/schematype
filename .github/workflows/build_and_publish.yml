@@ -245,7 +245,6 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
-          architecture: ${{ matrix.settings.architecture }}
       - name: Install dependencies
         run: pnpm install
       - name: Download artifacts
