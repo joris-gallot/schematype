@@ -231,7 +231,7 @@ jobs:
           - target: i686-pc-windows-msvc
             architecture: x86
         node:
-          - 22
+          - 20
     name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
     runs-on: windows-latest
     steps:
@@ -245,6 +245,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
+          architecture: ${{ matrix.settings.architecture }}
       - name: Install dependencies
         run: pnpm install
       - name: Download artifacts
