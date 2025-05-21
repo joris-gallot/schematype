@@ -231,7 +231,7 @@ jobs:
           - target: i686-pc-windows-msvc
             architecture: x86
         node:
-          - 20
+          - lts
     name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
     runs-on: windows-latest
     steps:
