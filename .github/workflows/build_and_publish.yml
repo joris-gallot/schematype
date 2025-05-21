@@ -252,6 +252,9 @@ jobs:
         with:
           name: bindings-${{ matrix.settings.target }}
           path: .
+      - name: List packages
+        run: ls -R .
+        shell: bash
       - name: Test bindings
         run: pnpm test
   test-macOS-binding:
