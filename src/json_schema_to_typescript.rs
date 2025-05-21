@@ -4,7 +4,7 @@ use openapiv3::{
 };
 use std::fmt;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 #[napi(object)]
 pub struct SchemaTypeOptions {
   pub name: Option<String>,
@@ -96,7 +96,7 @@ impl TypeInterface {
 
   fn primitive_to_ts_string(
     primitive_type: &PrimitiveType,
-    options: SchemaTypeOptions,
+    options: &SchemaTypeOptions,
   ) -> &'static str {
     match primitive_type {
       PrimitiveType::String => "string",
@@ -116,7 +116,7 @@ impl TypeInterface {
   fn primitive_to_string(
     primitive: &PrimitiveProperty,
     is_in_expression_array: bool,
-    options: SchemaTypeOptions,
+    options: &SchemaTypeOptions,
   ) -> String {
     let primitive_str = TypeInterface::primitive_to_ts_string(&primitive.primitive_type, options);
 
@@ -182,7 +182,7 @@ impl TypeInterface {
     object: &ObjectOrPrimitiveOrRef,
     depth: usize,
     expression_is_array: bool,
-    options: SchemaTypeOptions,
+    options: &SchemaTypeOptions,
   ) -> String {
     match object {
       ObjectOrPrimitiveOrRef::TypeObject(type_object) => {
@@ -209,15 +209,11 @@ impl TypeInterface {
                         &ObjectOrPrimitiveOrRef::TypeObject(obj.clone()),
                         depth + 1,
                         expression_is_array,
-                        options.clone(),
+                        options,
                       )
                     }
                     ObjectOrPrimitiveOrRef::PrimitiveProperty(primitive) => {
-                      TypeInterface::primitive_to_string(
-                        primitive,
-                        expression_is_array,
-                        options.clone(),
-                      )
+                      TypeInterface::primitive_to_string(primitive, expression_is_array, options)
                     }
                     ObjectOrPrimitiveOrRef::RefProperty(reference) => {
                       TypeInterface::reference_to_string(reference, expression_is_array)
@@ -297,9 +293,7 @@ impl fmt::Display for TypeInterface {
         let exp_string = expression
           .types
           .iter()
-          .map(|t| {
-            TypeInterface::type_object_to_string(t, 1, expression_is_array, self.options.clone())
-          })
+          .map(|t| TypeInterface::type_object_to_string(t, 1, expression_is_array, &self.options))
           .collect::<Vec<String>>()
           .join(TypeInterface::get_separator(&expression.link));
 
