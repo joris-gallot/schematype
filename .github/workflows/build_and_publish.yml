@@ -228,8 +228,9 @@ jobs:
         settings:
           - target: x86_64-pc-windows-msvc
             architecture: x64
-          - target: i686-pc-windows-msvc
-            architecture: x86
+          # can't run test, OOM error: https://github.com/joris-gallot/schematype/actions/runs/15163779233/job/42636401228
+          # - target: i686-pc-windows-msvc
+          #   architecture: x86
         node:
           - 22
     name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
