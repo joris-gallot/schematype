@@ -15,8 +15,8 @@ importers:
         specifier: ^6.3.0
         version: 6.3.0(rollup@4.34.8)
       vite-node:
-        specifier: ^3.2.1
-        version: 3.2.1(yaml@2.7.0)
+        specifier: ^3.2.2
+        version: 3.2.2(yaml@2.7.0)
 
 packages:
 
@@ -930,8 +930,8 @@ packages:
     resolution: {integrity: sha512-+QBBXBCvifc56fsbuxZQ6Sic3wqqc3WWaqxs58gvJrcOuN83HGTCwz3oS5phzU9LthRNE9VrJCFCLUgHeeFnfA==}
     engines: {node: '>=18'}
 
-  vite-node@3.2.1:
-    resolution: {integrity: sha512-V4EyKQPxquurNJPtQJRZo8hKOoKNBRIhxcDbQFPFig0JdoWcUhwRgK8yoCXXrfYVPKS6XwirGHPszLnR8FbjCA==}
+  vite-node@3.2.2:
+    resolution: {integrity: sha512-Xj/jovjZvDXOq2FgLXu8NsY4uHUMWtzVmMC2LkCu9HWdr9Qu1Is5sanX3Z4jOFKdohfaWDnEJWp9pRP0vVpAcA==}
     engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
     hasBin: true
 
@@ -1527,7 +1527,7 @@ snapshots:
   https-proxy-agent@7.0.6:
     dependencies:
       agent-base: 7.1.3
-      debug: 4.4.0
+      debug: 4.4.1
     transitivePeerDependencies:
       - supports-color
 
@@ -1802,7 +1802,7 @@ snapshots:
 
   unicorn-magic@0.3.0: {}
 
-  vite-node@3.2.1(yaml@2.7.0):
+  vite-node@3.2.2(yaml@2.7.0):
     dependencies:
       cac: 6.7.14
       debug: 4.4.1
