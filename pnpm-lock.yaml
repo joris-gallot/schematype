@@ -15,8 +15,8 @@ importers:
         specifier: ^6.4.0
         version: 6.4.0(rollup@4.34.8)
       vite-node:
-        specifier: ^3.2.3
-        version: 3.2.3(yaml@2.7.0)
+        specifier: ^3.2.4
+        version: 3.2.4(yaml@2.7.0)
 
 packages:
 
@@ -921,8 +921,8 @@ packages:
     resolution: {integrity: sha512-+QBBXBCvifc56fsbuxZQ6Sic3wqqc3WWaqxs58gvJrcOuN83HGTCwz3oS5phzU9LthRNE9VrJCFCLUgHeeFnfA==}
     engines: {node: '>=18'}
 
-  vite-node@3.2.3:
-    resolution: {integrity: sha512-gc8aAifGuDIpZHrPjuHyP4dpQmYXqWw7D1GmDnWeNWP654UEXzVfQ5IHPSK5HaHkwB/+p1atpYpSdw/2kOv8iQ==}
+  vite-node@3.2.4:
+    resolution: {integrity: sha512-EbKSKh+bh1E1IFxeO0pg1n4dvoOTt0UDiXMd/qn++r98+jPO1xtJilvXldeuQ8giIB5IkpjCgMleHMNEsGH6pg==}
     engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
     hasBin: true
 
@@ -1789,7 +1789,7 @@ snapshots:
 
   unicorn-magic@0.3.0: {}
 
-  vite-node@3.2.3(yaml@2.7.0):
+  vite-node@3.2.4(yaml@2.7.0):
     dependencies:
       cac: 6.7.14
       debug: 4.4.1
