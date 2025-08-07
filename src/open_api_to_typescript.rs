@@ -42,14 +42,6 @@ pub struct OpenApiPath {
   pub responses: HashMap<String, String>,
 }
 
-#[derive(Debug)]
-#[napi(object)]
-pub struct OpenApiParameter {
-  pub description: Option<String>,
-  pub required: bool,
-  pub ts_type: String,
-}
-
 impl OpenApiOutput {
   fn open_api_method_to_string(method: &OpenApiMethod) -> &'static str {
     match method {
