@@ -24,7 +24,7 @@
     "index.js"
   ],
   "engines": {
-    "node": ">=24.9.0"
+    "node": ">=24.10.0"
   },
   "napi": {
     "name": "schematype",
