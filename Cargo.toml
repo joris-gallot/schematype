@@ -11,7 +11,7 @@ napi-derive = "2.16.13"
 napi = "2.16.17"
 
 [build-dependencies]
-napi-build = "2.2.3"
+napi-build = "2.2.4"
 
 [lib]
 crate-type = [ "cdylib" ]
