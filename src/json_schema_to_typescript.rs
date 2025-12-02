@@ -308,7 +308,7 @@ impl fmt::Display for TypeInterface {
     let name = self.options.name.clone().unwrap_or_default();
 
     if name.is_empty() {
-      format!(f, "{}", final_type)
+      write!(f, "{}", final_type)
     } else {
       let is_single_type_object = self.expressions.len() == 1
         && matches!(
