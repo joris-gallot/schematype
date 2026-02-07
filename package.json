@@ -1,7 +1,7 @@
 {
   "name": "@schematype/core",
   "version": "0.1.0",
-  "packageManager": "pnpm@9.15.9",
+  "packageManager": "pnpm@10.29.1",
   "description": "Convert JSON Schema to TypeScript type declarations at Rust speed",
   "author": "Joris Gallot",
   "license": "MIT",
