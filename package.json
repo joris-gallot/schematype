@@ -62,7 +62,7 @@
     "artifacts": "napi artifacts"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^2.18.4",
+    "@napi-rs/cli": "^3.0.0",
     "ava": "^6.4.1",
     "vite-node": "^5.0.0"
   }
